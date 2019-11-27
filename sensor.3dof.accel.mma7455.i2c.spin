@@ -20,6 +20,9 @@ CON
     DEF_HZ            = 100_000
     I2C_MAX_FREQ      = core#I2C_MAX_FREQ
 
+'   Operating modes
+    #0, STANDBY, MEASURE, LEVELDET, PULSEDET
+
 VAR
 
 
@@ -52,10 +55,47 @@ PUB Stop
 ' Put any other housekeeping code here required/recommended by your device before shutting down
     i2c.terminate
 
+PUB Accel(ptr_x, ptr_y, ptr_z) | tmp
+
+    readReg(core#XOUTL, 2, ptr_x)
+    readReg(core#YOUTL, 2, ptr_y)
+    readReg(core#ZOUTL, 2, ptr_z)
+
+PUB DataOverflowed
+' Indicates previously acquired data has been overwritten
+'   Returns: TRUE (-1) if data has overflowed/been overwritten, FALSE otherwise
+    readReg(core#STATUS, 1, @result)
+    result := ((result >> core#FLD_DOVR) & %1) * TRUE
+
+PUB DataReady
+' Indicates data is ready
+'   Returns: TRUE (-1) if data ready, FALSE otherwise
+    readReg(core#STATUS, 1, @result)
+    result := (result & %1) * TRUE
+
 PUB DeviceID
 ' Get chip/device ID
 '   Known values: $55
     readReg(core#WHOAMI, 1, @result)
+
+PUB OpMode(mode) | tmp
+' Set operating mode
+'   Valid values:
+'       STANDBY (%00): Standby
+'       MEASURE (%01): Measurement mode
+'       LEVELDET (%10): Level detection mode
+'       PULSEDET (%11): Pulse detection mode
+    tmp := $00
+    readReg(core#MCTL, 1, @tmp)
+    case mode
+        STANDBY, MEASURE, LEVELDET, PULSEDET:
+        OTHER:
+            result := tmp & core#BITS_MODE
+            return
+
+    tmp &= core#MASK_MODE
+    tmp := (tmp | mode)
+    writeReg(core#MCTL, 1, @tmp)
 
 PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
 '' Read num_bytes from the slave device into the address stored in buff_addr
@@ -65,6 +105,7 @@ PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
             cmd_packet.byte[1] := reg
             i2c.start
             i2c.wr_block (@cmd_packet, 2)
+
             i2c.start
             i2c.write (SLAVE_RD)
             i2c.rd_block (buff_addr, nr_bytes, TRUE)

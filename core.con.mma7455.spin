@@ -25,7 +25,13 @@ CON
     XOUT8               = $06
     YOUT8               = $07
     ZOUT8               = $08
+
     STATUS              = $09
+    STATUS_MASK         = $07
+        FLD_PERR        = 2
+        FLD_DOVR        = 1
+        FLD_DRDY        = 0
+
     DETSRC              = $0A
     TOUT                = $0B
 ' RESERVED - $0C
@@ -38,7 +44,22 @@ CON
     YOFFH               = $13
     ZOFFL               = $14
     ZOFFH               = $15
+
     MCTL                = $16
+    MCTL_MASK           = $7F
+        FLD_DRPD        = 6
+        FLD_SPI3W       = 5
+        FLD_STON        = 4
+        FLD_GLVL        = 2
+        FLD_MODE        = 0
+        BITS_GLVL       = %11
+        BITS_MODE       = %11
+        MASK_DRPD       = MCTL_MASK ^ (1 << FLD_DRPD)
+        MASK_SPI3W      = MCTL_MASK ^ (1 << FLD_SPI3W)
+        MASK_STON       = MCTL_MASK ^ (1 << FLD_STON)
+        MASK_GLVL       = MCTL_MASK ^ (BITS_GLVL << FLD_GLVL)
+        MASK_MODE       = MCTL_MASK ^ (BITS_MODE << FLD_MODE)
+
     INTRST              = $17
     CTL1                = $18
     CTL2                = $19
