@@ -38,6 +38,7 @@ PUB Main | x, y, z, overflowed
     Setup
     mma7455.OpMode (mma7455#MEASURE)
     mma7455.AccelRange (8)
+    mma7455.SelfTest (FALSE)                            ' Datasheet says Z-axis should read 32..83 (64 typ) when self-test enabled
 
     ser.Str (string("Accel range: "))
     ser.Dec (mma7455.AccelRange (-2))

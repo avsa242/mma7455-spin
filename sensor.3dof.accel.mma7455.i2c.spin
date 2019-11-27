@@ -126,6 +126,25 @@ PUB OpMode(mode) | tmp
     tmp := (tmp | mode)
     writeReg(core#MCTL, 1, @tmp)
 
+PUB SelfTest(enabled) | tmp
+' Enable self-test
+'   Valid values: TRUE (-1 or 1), FALSE (0)
+'   Any other value polls the chip and returns the current setting
+'   NOTE: The datasheet specifies the Z-axis should read between 32 and 83 (64 typ) when the self-test is enabled
+    tmp := $00
+    readReg(core#MCTL, 1, @tmp)
+    case ||enabled
+        0, 1:
+            enabled := ||enabled << core#FLD_STON
+        OTHER:
+            tmp >>= core#FLD_STON
+            result := (tmp & %1) * TRUE
+
+    tmp &= core#MASK_STON
+    tmp := (tmp | enabled)
+    writeReg(core#MCTL, 1, @tmp)
+
+
 PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
 '' Read num_bytes from the slave device into the address stored in buff_addr
     case reg                                                    'Basic register validation
