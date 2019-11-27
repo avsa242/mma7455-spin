@@ -37,7 +37,10 @@ PUB Main | x, y, z, overflowed
 
     Setup
     mma7455.OpMode (mma7455#MEASURE)
+    mma7455.AccelRange (8)
 
+    ser.Str (string("Accel range: "))
+    ser.Dec (mma7455.AccelRange (-2))
     repeat
         repeat until mma7455.DataReady                  ' Wait until a new set of data is ready
 

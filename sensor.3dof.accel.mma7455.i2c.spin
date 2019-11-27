@@ -25,7 +25,6 @@ CON
 
 VAR
 
-
 OBJ
 
     i2c : "com.i2c"
@@ -55,11 +54,40 @@ PUB Stop
 ' Put any other housekeeping code here required/recommended by your device before shutting down
     i2c.terminate
 
-PUB Accel(ptr_x, ptr_y, ptr_z) | tmp
+PUB Accel(ptr_x, ptr_y, ptr_z) | tmp[2]
 
-    readReg(core#XOUTL, 2, ptr_x)
-    readReg(core#YOUTL, 2, ptr_y)
-    readReg(core#ZOUTL, 2, ptr_z)
+    bytefill(@tmp, $00, 8)
+    readReg(core#XOUTL, 6, @tmp)
+
+    long[ptr_x] := tmp.word[0]
+    long[ptr_y] := tmp.word[1]
+    long[ptr_z] := tmp.word[2]
+
+    if long[ptr_x] > 511
+        long[ptr_x] := long[ptr_x]-1024
+    if long[ptr_y] > 511
+        long[ptr_y] := long[ptr_y]-1024
+    if long[ptr_z] > 511
+        long[ptr_z] := long[ptr_z]-1024
+
+PUB AccelRange(g) | tmp
+' Set measurement range of the accelerometer, in g's
+'   Valid values: 2, 4, *8
+'   Any other value polls the chip and returns the current setting
+    tmp := $00
+    readReg(core#MCTL, 1, @tmp)
+    case g
+        2, 4, 8:
+            g := lookdownz(g: 8, 2, 4) << core#FLD_GLVL
+        OTHER:
+            tmp >>= core#FLD_GLVL
+            tmp &= core#BITS_GLVL
+            result := lookupz(tmp: 8, 2, 4)
+            return
+
+    tmp &= core#MASK_GLVL
+    tmp := (tmp | g)
+    writeReg(core#MCTL, 1, @tmp)
 
 PUB DataOverflowed
 ' Indicates previously acquired data has been overwritten
@@ -85,6 +113,7 @@ PUB OpMode(mode) | tmp
 '       MEASURE (%01): Measurement mode
 '       LEVELDET (%10): Level detection mode
 '       PULSEDET (%11): Pulse detection mode
+'   Any other value polls the chip and returns the current setting
     tmp := $00
     readReg(core#MCTL, 1, @tmp)
     case mode
