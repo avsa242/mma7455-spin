@@ -27,7 +27,7 @@ OBJ
     time    : "time"
     int     : "string.integer"
     io      : "io"
-    mma7455 : "sensor.3dof.accel.mma7455.i2c"
+    mma7455 : "sensor.accel.3dof.mma7455.i2c"
 
 VAR
 

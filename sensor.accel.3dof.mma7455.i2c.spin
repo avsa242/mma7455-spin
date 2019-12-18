@@ -1,6 +1,6 @@
 {
     --------------------------------------------
-    Filename: sensor.3dof.accel.mma7455.i2c.spin
+    Filename: sensor.accel.3dof.mma7455.i2c.spin
     Author:
     Description:
     Copyright (c) 2019
