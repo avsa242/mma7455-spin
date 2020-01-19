@@ -1,11 +1,11 @@
 {
     --------------------------------------------
     Filename: core.con.mma7455.spin
-    Author:
-    Description:
-    Copyright (c) 2019
+    Author: Jesse Burt
+    Description: Low-level constants
+    Copyright (c) 2020
     Started Nov 27, 2019
-    Updated Nov 27, 2019
+    Updated Jan 19, 2020
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -14,6 +14,7 @@ CON
 
     I2C_MAX_FREQ        = 400_000
     SLAVE_ADDR          = $1D << 1
+    DEVID_RESP          = $55
 
 ' Register definitions
     XOUTL               = $00

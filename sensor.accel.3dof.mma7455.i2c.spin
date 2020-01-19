@@ -1,11 +1,11 @@
 {
     --------------------------------------------
     Filename: sensor.accel.3dof.mma7455.i2c.spin
-    Author:
-    Description:
-    Copyright (c) 2019
+    Author: Jesse Burt
+    Description: Driver for the NXP/Freescale MMA7455 3-axis accelerometer
+    Copyright (c) 2020
     Started Nov 27, 2019
-    Updated Nov 27, 2019
+    Updated Jan 20, 2020
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -45,7 +45,7 @@ PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ): okay
             if okay := i2c.setupx (SCL_PIN, SDA_PIN, I2C_HZ)    'I2C Object Started?
                 time.MSleep (1)
                 if i2c.present (SLAVE_WR)                       'Response from device?
-                    if DeviceID == $55
+                    if DeviceID == core#DEVID_RESP
                         return okay
 
     return FALSE                                                'If we got here, something went wrong
