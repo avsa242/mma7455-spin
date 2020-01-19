@@ -6,7 +6,7 @@
         outputs live data from the chip.
     Copyright (c) 2020
     Started Nov 27, 2019
-    Updated Jan 12, 2020
+    Updated Jan 19, 2020
     See end of file for terms of use.
     --------------------------------------------
 }

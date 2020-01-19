@@ -6,11 +6,11 @@ This is a P8X32A/Propeller driver object for the NXP MMA7455 3DoF accelerometer
 ## Salient Features
 
 * I2C connection at up to 400kHz
-* Read Device ID (whoami)
-* Read raw accelerometer data
+* Read Device ID
+* Read raw accelerometer data, or data in micro-g's
 * Change operating mode (standby, measure, level detection, pulse detection)
-* Data ready and overflowed flags
-
+* Data ready and overrun flags
+* Perform calibration and store results in on-chip (volatile) offset registers
 
 ## Requirements
 
@@ -24,6 +24,6 @@ This is a P8X32A/Propeller driver object for the NXP MMA7455 3DoF accelerometer
 
 * Very early in development - may malfunction, or outright fail to build
 
-
 ## TODO
 
+- [ ] SPI driver variant
