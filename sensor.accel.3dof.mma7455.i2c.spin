@@ -25,6 +25,8 @@ CON
 
 VAR
 
+    long _aRes
+
 OBJ
 
     i2c : "com.i2c"
@@ -54,8 +56,8 @@ PUB Stop
 ' Put any other housekeeping code here required/recommended by your device before shutting down
     i2c.terminate
 
-PUB Accel(ptr_x, ptr_y, ptr_z) | tmp[2]
-
+PUB AccelData(ptr_x, ptr_y, ptr_z) | tmp[2]
+' Reads the Accelerometer output registers
     bytefill(@tmp, $00, 8)
     readReg(core#XOUTL, 6, @tmp)
 
@@ -70,7 +72,26 @@ PUB Accel(ptr_x, ptr_y, ptr_z) | tmp[2]
     if long[ptr_z] > 511
         long[ptr_z] := long[ptr_z]-1024
 
-PUB AccelRange(g) | tmp
+PUB AccelDataOverrun
+' Indicates previously acquired data has been overwritten
+'   Returns: TRUE (-1) if data has overflowed/been overwritten, FALSE otherwise
+    readReg(core#STATUS, 1, @result)
+    result := ((result >> core#FLD_DOVR) & %1) * TRUE
+
+PUB AccelDataReady
+' Indicates data is ready
+'   Returns: TRUE (-1) if data ready, FALSE otherwise
+    readReg(core#STATUS, 1, @result)
+    result := (result & %1) * TRUE
+
+PUB AccelG(ptr_x, ptr_y, ptr_z) | tmpX, tmpY, tmpZ, factor
+' Reads the Accelerometer output registers and scales the outputs to micro-g's (1_000_000 = 1.000000 g = 9.8 m/s/s)
+    AccelData(@tmpX, @tmpY, @tmpZ)
+    long[ptr_x] := tmpX * _aRes
+    long[ptr_y] := tmpY * _aRes
+    long[ptr_z] := tmpZ * _aRes
+
+PUB AccelScale(g) | tmp
 ' Set measurement range of the accelerometer, in g's
 '   Valid values: 2, 4, *8
 '   Any other value polls the chip and returns the current setting
@@ -78,7 +99,9 @@ PUB AccelRange(g) | tmp
     readReg(core#MCTL, 1, @tmp)
     case g
         2, 4, 8:
-            g := lookdownz(g: 8, 2, 4) << core#FLD_GLVL
+            g := lookdownz(g: 8, 2, 4)
+            _aRes := (2_000000 * lookupz(g: 8, 2, 4)) / 1024     '/1024 = for 10-bit output
+            g <<= core#FLD_GLVL
         OTHER:
             tmp >>= core#FLD_GLVL
             tmp &= core#BITS_GLVL
@@ -89,17 +112,37 @@ PUB AccelRange(g) | tmp
     tmp := (tmp | g)
     writeReg(core#MCTL, 1, @tmp)
 
-PUB DataOverflowed
-' Indicates previously acquired data has been overwritten
-'   Returns: TRUE (-1) if data has overflowed/been overwritten, FALSE otherwise
-    readReg(core#STATUS, 1, @result)
-    result := ((result >> core#FLD_DOVR) & %1) * TRUE
+PUB AccelSelfTest(enabled) | tmp
+' Enable self-test
+'   Valid values: TRUE (-1 or 1), FALSE (0)
+'   Any other value polls the chip and returns the current setting
+'   NOTE: The datasheet specifies the Z-axis should read between 32 and 83 (64 typ) when the self-test is enabled
+    tmp := $00
+    readReg(core#MCTL, 1, @tmp)
+    case ||enabled
+        0, 1:
+            enabled := ||enabled << core#FLD_STON
+        OTHER:
+            tmp >>= core#FLD_STON
+            result := (tmp & %1) * TRUE
 
-PUB DataReady
-' Indicates data is ready
-'   Returns: TRUE (-1) if data ready, FALSE otherwise
-    readReg(core#STATUS, 1, @result)
-    result := (result & %1) * TRUE
+    tmp &= core#MASK_STON
+    tmp := (tmp | enabled)
+    writeReg(core#MCTL, 1, @tmp)
+
+PUB Calibrate | tmpX, tmpY, tmpZ
+' Calibrate the accelerometer
+'   NOTE: The accelerometer must be oriented with the package top facing up for this method to be successful
+    repeat 3
+        AccelData(@tmpX, @tmpY, @tmpZ)
+        tmpX += 2 * -tmpX
+        tmpY += 2 * -tmpY
+        tmpZ += 2 * -(tmpZ-(_aRes/1000))
+
+    writeReg(core#XOFFL, 2, @tmpX)
+    writeReg(core#YOFFL, 2, @tmpY)
+    writeReg(core#ZOFFL, 2, @tmpZ)
+    time.MSleep(200)
 
 PUB DeviceID
 ' Get chip/device ID
@@ -125,25 +168,6 @@ PUB OpMode(mode) | tmp
     tmp &= core#MASK_MODE
     tmp := (tmp | mode)
     writeReg(core#MCTL, 1, @tmp)
-
-PUB SelfTest(enabled) | tmp
-' Enable self-test
-'   Valid values: TRUE (-1 or 1), FALSE (0)
-'   Any other value polls the chip and returns the current setting
-'   NOTE: The datasheet specifies the Z-axis should read between 32 and 83 (64 typ) when the self-test is enabled
-    tmp := $00
-    readReg(core#MCTL, 1, @tmp)
-    case ||enabled
-        0, 1:
-            enabled := ||enabled << core#FLD_STON
-        OTHER:
-            tmp >>= core#FLD_STON
-            result := (tmp & %1) * TRUE
-
-    tmp &= core#MASK_STON
-    tmp := (tmp | enabled)
-    writeReg(core#MCTL, 1, @tmp)
-
 
 PRI readReg(reg, nr_bytes, buff_addr) | cmd_packet, tmp
 '' Read num_bytes from the slave device into the address stored in buff_addr

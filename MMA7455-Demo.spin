@@ -2,10 +2,11 @@
     --------------------------------------------
     Filename: MMA7455-Demo.spin
     Author: Jesse Burt
-    Description: Simple demo for the MMA7455 driver
-    Copyright (c) 2019
+    Description: Simple demo of the MMA7455 driver that
+        outputs live data from the chip.
+    Copyright (c) 2020
     Started Nov 27, 2019
-    Updated Nov 27, 2019
+    Updated Jan 12, 2020
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -15,76 +16,116 @@ CON
     _clkmode    = cfg#_clkmode
     _xinfreq    = cfg#_xinfreq
 
-    LED         = cfg#LED1
     SCL_PIN     = 28
     SDA_PIN     = 29
     I2C_HZ      = 400_000
+
+    LED         = cfg#LED1
+    SER_RX      = 31
+    SER_TX      = 30
+    SER_BAUD    = 115_200
 
 OBJ
 
     cfg     : "core.con.boardcfg.flip"
     ser     : "com.serial.terminal.ansi"
     time    : "time"
-    int     : "string.integer"
     io      : "io"
-    mma7455 : "sensor.accel.3dof.mma7455.i2c"
+    accel   : "sensor.accel.3dof.mma7455.i2c"
+    int     : "string.integer"
 
 VAR
 
-    byte _ser_cog
+    long _overruns
+    byte _ser_cog, _accel_cog
 
-PUB Main | x, y, z, overflowed
+PUB Main | dispmode
 
     Setup
-    mma7455.OpMode (mma7455#MEASURE)
-    mma7455.AccelRange (8)
-    mma7455.SelfTest (FALSE)                            ' Datasheet says Z-axis should read 32..83 (64 typ) when self-test enabled
 
-    ser.Str (string("Accel range: "))
-    ser.Dec (mma7455.AccelRange (-2))
+    accel.OpMode(accel#MEASURE)
+    accel.AccelScale(8)
+    ser.HideCursor
+    dispmode := 0
+
     repeat
-        repeat until mma7455.DataReady                  ' Wait until a new set of data is ready
+        case ser.RxCheck
+            "q", "Q":
+                ser.Position(0, 5)
+                ser.str(string("Halting"))
+                accel.Stop
+                time.MSleep(5)
+                ser.Stop
+                quit
+            "c", "C":
+                Calibrate
+            "r", "R":
+                ser.Position(0, 3)
+                repeat 2
+                    ser.ClearLine(ser#CLR_CUR_TO_END)
+                    ser.Newline
+                dispmode ^= 1
 
-        if mma7455.DataOverflowed
-            overflowed++
+        ser.Position (0, 3)
+        case dispmode
+            0: AccelRaw
+            1: AccelCalc
 
-        mma7455.Accel (@x, @y, @z)                      ' Then read it into the local variables
+    ser.ShowCursor
+    FlashLED(LED, 100)
 
-        ser.Position (0, 5)                             ' and display
-        ser.Str (string("X: "))
-        ser.Str (int.DecPadded (x, 5))
+PUB Calibrate
 
-        ser.Str (string("  Y: "))
-        ser.Str (int.DecPadded (y, 5))
+    ser.Position (0, 8)
+    ser.Str(string("Calibrating..."))
+    accel.Calibrate
+    ser.Position (0, 8)
+    ser.Str(string("              "))
 
-        ser.Str (string("  Z: "))
-        ser.Str (int.DecPadded (z, 5))
+PUB AccelCalc | ax, ay, az
 
-        ser.Str (string("  Overflows: "))
-        ser.Str (int.DecPadded (overflowed, 5))
+    repeat until accel.AccelDataReady
+    accel.AccelG (@ax, @ay, @az)
+    if accel.AccelDataOverrun
+        _overruns++
+    ser.Str (string("Accel micro-g: "))
+    ser.Str (int.DecPadded (ax, 10))
+    ser.Str (int.DecPadded (ay, 10))
+    ser.Str (int.DecPadded (az, 10))
+    ser.Newline
+    ser.Str (string("Overruns: "))
+    ser.Dec (_overruns)
 
-    FlashLED (LED, 100)
+PUB AccelRaw | ax, ay, az
+
+    repeat until accel.AccelDataReady
+    accel.AccelData (@ax, @ay, @az)
+    if accel.AccelDataOverrun
+        _overruns++
+    ser.Str (string("Raw Accel: "))
+    ser.Str (int.DecPadded (ax, 7))
+    ser.Str (int.DecPadded (ay, 7))
+    ser.Str (int.DecPadded (az, 7))
+    ser.Newline
+    ser.Str (string("Overruns: "))
+    ser.Dec (_overruns)
 
 PUB Setup
 
-    repeat until _ser_cog := ser.Start (115_200)
-    time.MSleep(30)
+    repeat until _ser_cog := ser.StartRXTX (SER_RX, SER_TX, %0000, SER_BAUD)
+    time.MSleep(20)
     ser.Clear
-    ser.Str(string("Serial terminal started", ser#CR, ser#LF))
-    if mma7455.Startx (SCL_PIN, SDA_PIN, I2C_HZ)
-        ser.Str(string("MMA7455 driver started", ser#CR, ser#LF))
+    ser.Str (string("Serial terminal started", ser#CR, ser#LF))
+    if _accel_cog := accel.Startx (SCL_PIN, SDA_PIN, I2C_HZ)
+        ser.Str (string("MMA7455 driver started", ser#CR, ser#LF))
     else
-        ser.Str(string("MMA7455 driver failed to start - halting", ser#CR, ser#LF))
-        mma7455.Stop
-        time.MSleep (500)
-        FlashLED (LED, 500)
+        ser.Str (string("MMA7455 driver failed to start - halting", ser#CR, ser#LF))
+        accel.Stop
+        time.MSleep (5)
+        ser.Stop
+        FlashLED(LED, 500)
 
-PUB FlashLED(led_pin, delay_ms)
-
-    io.Output (led_pin)
-    repeat
-        io.Toggle (led_pin)
-        time.MSleep (delay_ms)
+#include "lib.utility.spin"
 
 DAT
 {
