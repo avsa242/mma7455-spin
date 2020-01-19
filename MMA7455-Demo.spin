@@ -23,7 +23,7 @@ CON
 OBJ
 
     cfg     : "core.con.boardcfg.flip"
-    ser     : "com.serial.terminal"
+    ser     : "com.serial.terminal.ansi"
     time    : "time"
     int     : "string.integer"
     io      : "io"
@@ -68,12 +68,13 @@ PUB Main | x, y, z, overflowed
 PUB Setup
 
     repeat until _ser_cog := ser.Start (115_200)
+    time.MSleep(30)
     ser.Clear
-    ser.Str(string("Serial terminal started", ser#NL))
+    ser.Str(string("Serial terminal started", ser#CR, ser#LF))
     if mma7455.Startx (SCL_PIN, SDA_PIN, I2C_HZ)
-        ser.Str(string("MMA7455 driver started", ser#NL))
+        ser.Str(string("MMA7455 driver started", ser#CR, ser#LF))
     else
-        ser.Str(string("MMA7455 driver failed to start - halting", ser#NL))
+        ser.Str(string("MMA7455 driver failed to start - halting", ser#CR, ser#LF))
         mma7455.Stop
         time.MSleep (500)
         FlashLED (LED, 500)
