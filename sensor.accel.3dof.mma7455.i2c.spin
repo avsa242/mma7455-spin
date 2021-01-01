@@ -28,8 +28,13 @@ CON
     BARO_DOF            = 0
     DOF                 = ACCEL_DOF + GYRO_DOF + MAG_DOF + BARO_DOF
 
-'   Operating modes
+' Operating modes
     #0, STANDBY, MEASURE, LEVELDET, PULSEDET
+
+' Individual axes
+    X_AXIS              = 0
+    Y_AXIS              = 1
+    Z_AXIS              = 2
 
 VAR
 
@@ -66,19 +71,14 @@ PUB Stop{}
 
 PUB AccelData(ptr_x, ptr_y, ptr_z) | tmp[2]
 ' Reads the Accelerometer output registers
-    bytefill(@tmp, 0, 8)
+    longfill(@tmp, 0, 2)
     readreg(core#XOUTL, 6, @tmp)
 
-    long[ptr_x] := tmp.word[0]
-    long[ptr_y] := tmp.word[1]
-    long[ptr_z] := tmp.word[2]
-
-    if long[ptr_x] > 511
-        long[ptr_x] := long[ptr_x]-1024
-    if long[ptr_y] > 511
-        long[ptr_y] := long[ptr_y]-1024
-    if long[ptr_z] > 511
-        long[ptr_z] := long[ptr_z]-1024
+    ' shift left to put the sign into bit 31, then SAR back down to the
+    '   original position
+    long[ptr_x] := (tmp.word[X_AXIS] << 22) ~> 22
+    long[ptr_y] := (tmp.word[Y_AXIS] << 22) ~> 22
+    long[ptr_z] := (tmp.word[Z_AXIS] << 22) ~> 22
 
 PUB AccelDataOverrun{}: flag
 ' Flag indicating previously acquired data has been overwritten
@@ -99,50 +99,44 @@ PUB AccelG(ptr_x, ptr_y, ptr_z) | tmpx, tmpy, tmpz
     long[ptr_y] := tmpy * _ares
     long[ptr_z] := tmpz * _ares
 
-PUB AccelScale(g) | tmp
+PUB AccelScale(scale): curr_scl
 ' Set measurement range of the accelerometer, in g's
 '   Valid values: 2, 4, *8
 '   Any other value polls the chip and returns the current setting
-    tmp := 0
-    readreg(core#MCTL, 1, @tmp)
-    case g
+    curr_scl := 0
+    readreg(core#MCTL, 1, @curr_scl)
+    case scale
         2, 4, 8:
-            g := lookdownz(g: 8, 2, 4)
-            _ares := (2_000000 * lookupz(g: 8, 2, 4)) / 1024     '/1024 = for 10-bit output
-            g <<= core#GLVL
+            _ares := (2_000000 * scale) / 1024  ' / 1024 for 10-bit output
+            scale := lookdownz(scale: 8, 2, 4) << core#GLVL
         other:
-            tmp >>= core#GLVL
-            tmp &= core#GLVL_BITS
-            result := lookupz(tmp: 8, 2, 4)
-            return
+            curr_scl := (curr_scl >> core#GLVL) & core#GLVL_BITS
+            return lookupz(curr_scl: 8, 2, 4)
 
-    tmp &= core#GLVL_MASK
-    tmp := (tmp | g)
-    writereg(core#MCTL, 1, @tmp)
+    scale := ((curr_scl & core#GLVL_MASK) | scale)
+    writereg(core#MCTL, 1, @scale)
 
-PUB AccelSelfTest(enabled) | tmp
+PUB AccelSelfTest(state) | curr_state
 ' Enable self-test
 '   Valid values: TRUE (-1 or 1), FALSE (0)
 '   Any other value polls the chip and returns the current setting
-'   NOTE: The datasheet specifies the Z-axis should read between 32 and 83 (64 typ) when the self-test is enabled
-    tmp := 0
-    readreg(core#MCTL, 1, @tmp)
-    case ||(enabled)
+'   NOTE: The datasheet specifies the Z-axis should read between 32 and 83 (64 typ) when the self-test is state
+    curr_state := 0
+    readreg(core#MCTL, 1, @curr_state)
+    case ||(state)
         0, 1:
-            enabled := ||(enabled) << core#STON
+            state := ||(state) << core#STON
         other:
-            tmp >>= core#STON
-            return ((tmp & 1) == 1)
+            return (((curr_state >> core#STON) & 1) == 1)
 
-    tmp &= core#STON_MASK
-    tmp := (tmp | enabled)
-    writereg(core#MCTL, 1, @tmp)
+    state := ((curr_state & core#STON_MASK) | state)
+    writereg(core#MCTL, 1, @state)
 
 PUB Calibrate{} | tmpx, tmpy, tmpz
 ' Calibrate the accelerometer
 '   NOTE: The accelerometer must be oriented with the package top facing up for this method to be successful
     repeat 3
-        AccelData(@tmpx, @tmpy, @tmpz)
+        acceldata(@tmpx, @tmpy, @tmpz)
         tmpx += 2 * -tmpx
         tmpy += 2 * -tmpy
         tmpz += 2 * -(tmpz-(_ares/1000))
@@ -157,7 +151,7 @@ PUB DeviceID{}
 '   Known values: $55
     readreg(core#WHOAMI, 1, @result)
 
-PUB OpMode(mode) | tmp
+PUB OpMode(mode) | curr_mode
 ' Set operating mode
 '   Valid values:
 '       STANDBY (%00): Standby
@@ -165,17 +159,15 @@ PUB OpMode(mode) | tmp
 '       LEVELDET (%10): Level detection mode
 '       PULSEDET (%11): Pulse detection mode
 '   Any other value polls the chip and returns the current setting
-    tmp := 0
-    readreg(core#MCTL, 1, @tmp)
+    curr_mode := 0
+    readreg(core#MCTL, 1, @curr_mode)
     case mode
         STANDBY, MEASURE, LEVELDET, PULSEDET:
         other:
-            result := tmp & core#MODE_BITS
-            return
+            return curr_mode & core#MODE_BITS
 
-    tmp &= core#MODE_MASK
-    tmp := (tmp | mode)
-    writereg(core#MCTL, 1, @tmp)
+    mode := ((curr_mode & core#MODE_MASK) | mode)
+    writereg(core#MCTL, 1, @mode)
 
 PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt, tmp
 ' Read nr_bytes from slave device into ptr_buff
