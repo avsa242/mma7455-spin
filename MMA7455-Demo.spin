@@ -3,12 +3,13 @@
     Filename: MMA7455-Demo.spin
     Author: Jesse Burt
     Description: Demo of the MMA7455 driver
-    Copyright (c) 2020
+    Copyright (c) 2021
     Started Aug 28, 2020
-    Updated Oct 31, 2020
+    Updated May 17, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
+
 CON
 
     _clkmode    = cfg#_clkmode
@@ -18,17 +19,14 @@ CON
     LED         = cfg#LED1
     SER_BAUD    = 115_200
 
-    SCL_PIN     = 28
-    SDA_PIN     = 29
-    I2C_HZ      = 400_000
+    SCL_PIN     = 28                            ' I2C
+    SDA_PIN     = 29                            ' I2C
+    I2C_HZ      = 400_000                       ' I2C
 ' --
 
     DAT_X_COL   = 20
     DAT_Y_COL   = DAT_X_COL + 15
     DAT_Z_COL   = DAT_Y_COL + 15
-
-    C           = 0
-    F           = 1
 
 OBJ
 
@@ -38,86 +36,43 @@ OBJ
     int     : "string.integer"
     accel   : "sensor.accel.3dof.mma7455.i2c"
 
-PUB Main{} | dispmode
+PUB Main{}
 
     setup{}
-    accel.opmode(accel#MEASURE)
-    accel.accelscale(4)
-    ser.hidecursor{}
-    dispmode := 0
-    displaysettings{}
-    repeat
-        case ser.rxcheck{}
-            "q", "Q":                                       ' Quit the demo
-                ser.position(0, 17)
-                ser.str(string("Halting"))
-                accel.stop{}
-                time.msleep(5)
-                quit
-            "c", "C":                                       ' Perform calibration
-                calibrate{}
-                displaysettings{}
-            "r", "R":                                       ' Change display mode: raw/calculated
-                ser.position(0, 14)
-                repeat 2
-                    ser.clearline{}
-                    ser.newline{}
-                dispmode ^= 1
-        case dispmode
-            0:
-                ser.position(0, 14)
-                accelraw{}
-            1:
-                ser.position(0, 14)
-                accelcalc{}
 
-    ser.showcursor{}
+    accel.opmode(accel#MEASURE)
+    accel.accelscale(2)
+
     repeat
+        ser.position(0, 3)
+        accelcalc{}
+
+        if ser.rxcheck{} == "c"                 ' press the 'c' key in the demo
+            calibrate{}                         ' to calibrate sensor offsets
 
 PUB AccelCalc{} | ax, ay, az
 
-'    repeat until accel.acceldataready{}
-    accel.accelg(@ax, @ay, @az)
-    ser.str(string("Accel micro-g: "))
-    ser.position(DAT_X_COL, 14)
-    decimal(ax, 1_000_000)
-    ser.position(DAT_Y_COL, 14)
-    decimal(ay, 1_000_000)
-    ser.position(DAT_Z_COL, 14)
-    decimal(az, 1_000_000)
-    ser.clearline{}
-    ser.newline{}
-
-PUB AccelRaw{} | ax, ay, az
-
-'    repeat until accel.acceldataready{}
-    accel.acceldata(@ax, @ay, @az)
-    ser.str(string("Accel raw: "))
-    ser.position(DAT_X_COL, 14)
-    ser.str(int.decpadded(ax, 7))
-    ser.position(DAT_Y_COL, 14)
-    ser.str(int.decpadded(ay, 7))
-    ser.position(DAT_Z_COL, 14)
-    ser.str(int.decpadded(az, 7))
+    repeat until accel.acceldataready{}         ' wait for new sensor data set
+    accel.accelg(@ax, @ay, @az)                 ' read calculated sensor data
+    ser.str(string("Accel (g):"))
+    ser.positionx(DAT_X_COL)
+    decimal(ax, 1000000)                        ' data is in micro-g's; display
+    ser.positionx(DAT_Y_COL)                    ' it as if it were a float
+    decimal(ay, 1000000)
+    ser.positionx(DAT_Z_COL)
+    decimal(az, 1000000)
     ser.clearline{}
     ser.newline{}
 
 PUB Calibrate{}
 
-    ser.position(0, 21)
+    ser.position(0, 7)
     ser.str(string("Calibrating..."))
     accel.calibrateaccel{}
-    ser.position(0, 21)
-    ser.str(string("              "))
+    ser.positionx(0)
+    ser.clearline{}
 
-PUB DisplaySettings{} | axo, ayo, azo
-
-    ser.position(0, 3)
-    ser.str(string("AccelScale: "))
-    ser.dec(accel.accelscale(-2))
-    ser.newline{}
-
-PUB Decimal(scaled, divisor) | whole[4], part[4], places, tmp, sign
+PRI Decimal(scaled, divisor) | whole[4], part[4], places, tmp, sign
 ' Display a scaled up number as a decimal
 '   Scale it back down by divisor (e.g., 10, 100, 1000, etc)
     whole := scaled / divisor
@@ -141,6 +96,7 @@ PUB Decimal(scaled, divisor) | whole[4], part[4], places, tmp, sign
     ser.dec(||(whole))
     ser.char(".")
     ser.str(part)
+    ser.chars(" ", 5)
 
 PUB Setup{}
 
@@ -148,12 +104,14 @@ PUB Setup{}
     time.msleep(30)
     ser.clear{}
     ser.strln(string("Serial terminal started"))
+
     if accel.startx(SCL_PIN, SDA_PIN, I2C_HZ)
-        ser.str(string("MMA7455 driver started (I2C)"))
+        ser.strln(string("MMA7455 driver started (I2C)"))
     else
-        ser.str(string("MMA7455 driver failed to start - halting"))
+        ser.strln(string("MMA7455 driver failed to start - halting"))
         accel.stop{}
         time.msleep(5)
+        ser.stop{}
         repeat
 
 DAT
