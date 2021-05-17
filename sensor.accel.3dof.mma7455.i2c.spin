@@ -43,7 +43,7 @@ VAR
 OBJ
 
     i2c : "com.i2c"
-    core: "core.con.mma7455.spin"
+    core: "core.con.mma7455"
     time: "time"
 
 PUB Null{}
@@ -72,7 +72,9 @@ PUB Stop{}
 PUB AccelData(ptr_x, ptr_y, ptr_z) | tmp[2]
 ' Reads the Accelerometer output registers
     longfill(@tmp, 0, 2)
-    readreg(core#XOUTL, 6, @tmp)
+    readreg(core#XOUTL, 6, @tmp)    'XXX these regs only valid for 8g scale
+                                    'use hub var to hold reg# depending on scale?
+                                    'set in accelscale()
 
     ' shift left to put the sign into bit 31, then SAR back down to the
     '   original position
@@ -106,8 +108,11 @@ PUB AccelScale(scale): curr_scl
     curr_scl := 0
     readreg(core#MCTL, 1, @curr_scl)
     case scale
-        2, 4, 8:
-            _ares := (2_000000 * scale) / 1024  ' / 1024 for 10-bit output
+        2, 4:
+            _ares := (2_000000 * scale) / 256   ' 8-bit output
+            scale := lookdownz(scale: 8, 2, 4) << core#GLVL
+        8:
+            _ares := (2_000000 * scale) / 1024  ' 10-bit output
             scale := lookdownz(scale: 8, 2, 4) << core#GLVL
         other:
             curr_scl := (curr_scl >> core#GLVL) & core#GLVL_BITS
@@ -132,7 +137,7 @@ PUB AccelSelfTest(state) | curr_state
     state := ((curr_state & core#STON_MASK) | state)
     writereg(core#MCTL, 1, @state)
 
-PUB Calibrate{} | tmpx, tmpy, tmpz
+PUB CalibrateAccel{} | tmpx, tmpy, tmpz
 ' Calibrate the accelerometer
 '   NOTE: The accelerometer must be oriented with the package top facing up for this method to be successful
     repeat 3
