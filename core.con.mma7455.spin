@@ -62,7 +62,26 @@ CON
         MODE_MASK       = MODE_BITS ^ MCTL_MASK
 
     INTRST              = $17
+
     CTL1                = $18
+    CTL1_MASK           = $FF
+        DFBW            = 7
+        THOPT           = 6
+        ZDA             = 5
+        YDA             = 4
+        XDA             = 3
+        ZYXDA           = 3
+        INTREG          = 1
+        INTPIN          = 0
+        ZYXDA_BITS      = %111
+        INTREG_BITS     = %11
+        DFBW_MASK       = (1 << DFBW) ^ CTL1_MASK
+        THOPT_MASK      = (1 << THOPT) ^ CTL1_MASK
+        ZYXDA_MASK      = (ZYXDA_BITS << ZYXDA) ^ CTL1_MASK
+        INTREG_MASK     = (INTREG_BITS << INTREG) ^ CTL1_MASK
+        INTPIN_MASK     = 1 ^ CTL1_MASK
+
+
     CTL2                = $19
     LDTH                = $1A
     PDTH                = $1B
@@ -73,4 +92,4 @@ CON
 
 
 PUB Null
-'' This is not a top-level object
+' This is not a top-level object

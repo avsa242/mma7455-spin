@@ -28,6 +28,18 @@ CON
     BARO_DOF    = 0
     DOF         = ACCEL_DOF + GYRO_DOF + MAG_DOF + BARO_DOF
 
+    R           = 0
+    W           = 1
+
+' Scales and data rates used during calibration/bias/offset process
+    CAL_XL_SCL  = 2
+    CAL_G_SCL   = 0
+    CAL_M_SCL   = 0
+    CAL_XL_DR   = 250
+    CAL_G_DR    = 0
+    CAL_M_DR    = 0
+
+
 ' Operating modes
     #0, STANDBY, MEASURE, LEVELDET, PULSEDET
 
@@ -71,6 +83,43 @@ PUB Stop{}
 
     i2c.deinit{}
 
+PUB AccelBias(bias_x, bias_y, bias_z, rw) | tmp[2]
+' Read or write/manually set accelerometer calibration offset values
+'   Valid values:
+'       rw:
+'           R (0), W (1)
+'       bias_x, bias_y, bias_z:
+'           -128..127 (2g or 4g scale)
+'           -512..511 (8g scale)
+'   NOTE: When rw is set to READ, bias_x, bias_y and bias_z must be addresses
+'       of respective variables to hold the returned calibration offset values.
+    case rw
+        R:
+            readreg(core#XOFFL, 6, @tmp)
+            long[bias_x] := (((tmp.word[X_AXIS] << 22) ~> 22) * 2)
+            long[bias_y] := (((tmp.word[Y_AXIS] << 22) ~> 22) * 2)
+            long[bias_z] := (((tmp.word[Z_AXIS] << 22) ~> 22) * 2)
+            return
+        W:
+            case bias_x
+                -512..511:
+                    bias_x *= 2
+                other:
+                    return                      ' out of range
+            case bias_y
+                -512..511:
+                    bias_y *= 2
+                other:
+                    return                      ' out of range
+            case bias_z
+                -512..511:
+                    bias_z *= 2
+                other:
+                    return                      ' out of range
+            writereg(core#XOFFL, 2, @bias_x)
+            writereg(core#YOFFL, 2, @bias_y)
+            writereg(core#ZOFFL, 2, @bias_z)
+
 PUB AccelData(ptr_x, ptr_y, ptr_z) | tmp[2]
 ' Reads the Accelerometer output registers
     longfill(@tmp, 0, 2)
@@ -86,6 +135,23 @@ PUB AccelData(ptr_x, ptr_y, ptr_z) | tmp[2]
             long[ptr_x] := (tmp.word[X_AXIS] << 22) ~> 22
             long[ptr_y] := (tmp.word[Y_AXIS] << 22) ~> 22
             long[ptr_z] := (tmp.word[Z_AXIS] << 22) ~> 22
+
+PUB AccelDataRate(rate): curr_rate
+' Set accelerometer output data rate, in Hz
+'   Valid values:
+'       125, 250
+'   Any other value polls the chip and returns the current setting
+    curr_rate := 0
+    readreg(core#CTL1, 1, @curr_rate)
+    case rate
+        125, 250:
+            rate := lookdownz(rate: 125, 250) << core#DFBW
+        other:
+            curr_rate := ((curr_rate >> core#DFBW) & 1)
+            return lookupz(curr_rate: 125, 250)
+
+    rate := ((curr_rate & core#DFBW_MASK) | rate)
+    writereg(core#CTL1, 1, @rate)
 
 PUB AccelDataOverrun{}: flag
 ' Flag indicating previously acquired data has been overwritten
@@ -142,19 +208,35 @@ PUB AccelSelfTest(state) | curr_state
     state := ((curr_state & core#STON_MASK) | state)
     writereg(core#MCTL, 1, @state)
 
-PUB CalibrateAccel{} | tmpx, tmpy, tmpz
+PUB CalibrateAccel{} | acceltmp[ACCEL_DOF], axis, x, y, z, samples, scale_orig, drate_orig
 ' Calibrate the accelerometer
-'   NOTE: The accelerometer must be oriented with the package top facing up for this method to be successful
-    repeat 3
-        acceldata(@tmpx, @tmpy, @tmpz)
-        tmpx += 2 * -tmpx
-        tmpy += 2 * -tmpy
-        tmpz += 2 * -(tmpz-(_ares/1000))
+    longfill(@acceltmp, 0, 10)                  ' init variables to 0
+    drate_orig := acceldatarate(-2)             ' store user-set data rate
+    scale_orig := accelscale(-2)                '   and scale
 
-    writereg(core#XOFFL, 2, @tmpx)
-    writereg(core#YOFFL, 2, @tmpy)
-    writereg(core#ZOFFL, 2, @tmpz)
-    time.msleep(200)
+    accelbias(0, 0, 0, W)                       ' clear existing bias offsets
+
+    acceldatarate(CAL_XL_DR)                    ' set data rate and scale to
+    accelscale(CAL_XL_SCL)                      '   device-specific settings
+    samples := CAL_XL_DR                        ' samples = DR for approx 1sec
+                                                '   worth of data
+    repeat samples
+        repeat until acceldataready{}
+        acceldata(@x, @y, @z)                   ' throw out first set of samples
+
+    repeat samples
+        repeat until acceldataready{}
+        acceldata(@x, @y, @z)                   ' accumulate samples to be
+        acceltmp[X_AXIS] -= x                   '   averaged
+        acceltmp[Y_AXIS] -= y
+        acceltmp[Z_AXIS] -= z - (1_000_000 / _ares)
+
+    ' write the updated offsets
+    accelbias(acceltmp[X_AXIS] / samples, acceltmp[Y_AXIS] / samples, {
+}   acceltmp[Z_AXIS] / samples, W)
+
+    acceldatarate(drate_orig)                   ' restore user settings
+    accelscale(scale_orig)
 
 PUB DeviceID{}
 ' Get chip/device ID
