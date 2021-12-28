@@ -172,6 +172,24 @@ PUB AccelG(ptr_x, ptr_y, ptr_z) | tmpx, tmpy, tmpz
     long[ptr_y] := tmpy * _ares
     long[ptr_z] := tmpz * _ares
 
+PUB AccelIntMask(mask): curr_mask
+' Set accelerometer interrupt mask
+'   Bits: 1..0  INT1                        INT2
+'       %00:    Threshold detection         Pulse/Click/Tap detection
+'       %01:    Pulse/Click/Tap detection   Threshold detection
+'       %10:    Single pulse detection      Single or double pulse detection
+'   Any other value polls the chip and returns the current setting
+    curr_mask := 0
+    readreg(core#CTL1, 1, @curr_mask)
+    case mask
+        %00..%10:
+            mask <<= core#INTREG
+        other:
+            return ((curr_mask >> core#INTREG) & core#INTREG_BITS)
+
+    mask := ((curr_mask & core#INTREG_MASK) | mask)
+    writereg(core#CTL1, 1, @mask)
+
 PUB AccelScale(scale): curr_scl
 ' Set measurement range of the accelerometer, in g's
 '   Valid values: 2, 4, *8
