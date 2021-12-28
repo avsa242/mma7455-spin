@@ -62,6 +62,11 @@ CON
         MODE_MASK       = MODE_BITS ^ MCTL_MASK
 
     INTRST              = $17
+    INTRST_MASK         = $03
+        CLR_INT2        = 1
+        CLR_INT1        = 0
+        CLR_INT_BITS    = %11
+        CLR_INT_MASK    = CLR_INT_BITS ^ INTRST_MASK
 
     CTL1                = $18
     CTL1_MASK           = $FF

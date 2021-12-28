@@ -172,6 +172,20 @@ PUB AccelG(ptr_x, ptr_y, ptr_z) | tmpx, tmpy, tmpz
     long[ptr_y] := tmpy * _ares
     long[ptr_z] := tmpz * _ares
 
+PUB AccelIntClear(mask)
+' Clear accelerometer interrupts
+'   Bits: 1..0
+'       1: Clear INT2 interrupt
+'       0: Clear INT1 interrupt
+'   Any other value is ignored
+    case mask
+        %00..%11:
+            writereg(core#INTRST, 1, @mask)     ' clear interrupts
+            mask := 0
+            writereg(core#INTRST, 1, @mask)     ' reset bits (not cleared
+        other:                                  '   automatically)
+            return
+
 PUB AccelIntMask(mask): curr_mask
 ' Set accelerometer interrupt mask
 '   Bits: 1..0  INT1                        INT2
