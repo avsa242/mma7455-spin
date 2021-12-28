@@ -40,7 +40,7 @@ PUB Main{}
 
     setup{}
 
-    accel.opmode(accel#MEASURE)
+    accel.accelopmode(accel#MEASURE)
     accel.accelscale(2)
 
     repeat

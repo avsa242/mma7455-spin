@@ -190,6 +190,24 @@ PUB AccelIntMask(mask): curr_mask
     mask := ((curr_mask & core#INTREG_MASK) | mask)
     writereg(core#CTL1, 1, @mask)
 
+PUB AccelOpMode(mode) | curr_mode
+' Set operating mode
+'   Valid values:
+'       STANDBY (%00): Standby
+'       MEASURE (%01): Measurement mode
+'       LEVELDET (%10): Level detection mode
+'       PULSEDET (%11): Pulse detection mode
+'   Any other value polls the chip and returns the current setting
+    curr_mode := 0
+    readreg(core#MCTL, 1, @curr_mode)
+    case mode
+        STANDBY, MEASURE, LEVELDET, PULSEDET:
+        other:
+            return curr_mode & core#MODE_BITS
+
+    mode := ((curr_mode & core#MODE_MASK) | mode)
+    writereg(core#MCTL, 1, @mode)
+
 PUB AccelScale(scale): curr_scl
 ' Set measurement range of the accelerometer, in g's
 '   Valid values: 2, 4, *8
@@ -260,24 +278,6 @@ PUB DeviceID{}
 ' Get chip/device ID
 '   Known values: $55
     readreg(core#WHOAMI, 1, @result)
-
-PUB OpMode(mode) | curr_mode
-' Set operating mode
-'   Valid values:
-'       STANDBY (%00): Standby
-'       MEASURE (%01): Measurement mode
-'       LEVELDET (%10): Level detection mode
-'       PULSEDET (%11): Pulse detection mode
-'   Any other value polls the chip and returns the current setting
-    curr_mode := 0
-    readreg(core#MCTL, 1, @curr_mode)
-    case mode
-        STANDBY, MEASURE, LEVELDET, PULSEDET:
-        other:
-            return curr_mode & core#MODE_BITS
-
-    mode := ((curr_mode & core#MODE_MASK) | mode)
-    writereg(core#MCTL, 1, @mode)
 
 PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Read nr_bytes from slave device into ptr_buff
