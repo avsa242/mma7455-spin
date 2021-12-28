@@ -2,10 +2,10 @@
     --------------------------------------------
     Filename: core.con.mma7455.spin
     Author: Jesse Burt
-    Description: Low-level constants
+    Description: MMA7455-specific constants
     Copyright (c) 2021
     Started Nov 27, 2019
-    Updated Jan 1, 2021
+    Updated Dec 28, 2021
     See end of file for terms of use.
     --------------------------------------------
 }

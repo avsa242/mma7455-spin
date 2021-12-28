@@ -5,40 +5,40 @@
     Description: Driver for the NXP/Freescale MMA7455 3-axis accelerometer
     Copyright (c) 2021
     Started Nov 27, 2019
-    Updated May 17, 2021
+    Updated Dec 28, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
 
 CON
 
-    SLAVE_WR          = core#SLAVE_ADDR
-    SLAVE_RD          = core#SLAVE_ADDR|1
+    SLAVE_WR    = core#SLAVE_ADDR
+    SLAVE_RD    = core#SLAVE_ADDR|1
 
-    DEF_SCL           = 28
-    DEF_SDA           = 29
-    DEF_HZ            = 100_000
-    I2C_MAX_FREQ      = core#I2C_MAX_FREQ
+    DEF_SCL     = 28
+    DEF_SDA     = 29
+    DEF_HZ      = 100_000
+    I2C_MAX_FREQ= core#I2C_MAX_FREQ
 
 ' Indicate to user apps how many Degrees of Freedom each sub-sensor has
 '   (also imply whether or not it has a particular sensor)
-    ACCEL_DOF           = 3
-    GYRO_DOF            = 0
-    MAG_DOF             = 0
-    BARO_DOF            = 0
-    DOF                 = ACCEL_DOF + GYRO_DOF + MAG_DOF + BARO_DOF
+    ACCEL_DOF   = 3
+    GYRO_DOF    = 0
+    MAG_DOF     = 0
+    BARO_DOF    = 0
+    DOF         = ACCEL_DOF + GYRO_DOF + MAG_DOF + BARO_DOF
 
 ' Operating modes
     #0, STANDBY, MEASURE, LEVELDET, PULSEDET
 
 ' Individual axes
-    X_AXIS              = 0
-    Y_AXIS              = 1
-    Z_AXIS              = 2
+    X_AXIS      = 0
+    Y_AXIS      = 1
+    Z_AXIS      = 2
 
 VAR
 
-    long _ares
+    long _ares, _ascl
 
 OBJ
 
@@ -74,15 +74,18 @@ PUB Stop{}
 PUB AccelData(ptr_x, ptr_y, ptr_z) | tmp[2]
 ' Reads the Accelerometer output registers
     longfill(@tmp, 0, 2)
-    readreg(core#XOUTL, 6, @tmp)    'XXX these regs only valid for 8g scale
-                                    'use hub var to hold reg# depending on scale?
-                                    'set in accelscale()
-
-    ' shift left to put the sign into bit 31, then SAR back down to the
-    '   original position
-    long[ptr_x] := (tmp.word[X_AXIS] << 22) ~> 22
-    long[ptr_y] := (tmp.word[Y_AXIS] << 22) ~> 22
-    long[ptr_z] := (tmp.word[Z_AXIS] << 22) ~> 22
+    case _ascl
+        2, 4:                                   ' 2g/4g (8-bit)
+            readreg(core#XOUT8, 3, @tmp)
+            long[ptr_x] := ~tmp.byte[X_AXIS]
+            long[ptr_y] := ~tmp.byte[Y_AXIS]
+            long[ptr_z] := ~tmp.byte[Z_AXIS]
+        8:                                      ' 8g (10-bit)
+            readreg(core#XOUTL, 6, @tmp)
+            ' extend sign
+            long[ptr_x] := (tmp.word[X_AXIS] << 22) ~> 22
+            long[ptr_y] := (tmp.word[Y_AXIS] << 22) ~> 22
+            long[ptr_z] := (tmp.word[Z_AXIS] << 22) ~> 22
 
 PUB AccelDataOverrun{}: flag
 ' Flag indicating previously acquired data has been overwritten
@@ -112,14 +115,14 @@ PUB AccelScale(scale): curr_scl
     case scale
         2, 4:
             _ares := (2_000000 * scale) / 256   ' 8-bit output
-            scale := lookdownz(scale: 8, 2, 4) << core#GLVL
         8:
             _ares := (2_000000 * scale) / 1024  ' 10-bit output
-            scale := lookdownz(scale: 8, 2, 4) << core#GLVL
         other:
             curr_scl := (curr_scl >> core#GLVL) & core#GLVL_BITS
             return lookupz(curr_scl: 8, 2, 4)
 
+    _ascl := scale
+    scale := lookdownz(scale: 8, 2, 4) << core#GLVL
     scale := ((curr_scl & core#GLVL_MASK) | scale)
     writereg(core#MCTL, 1, @scale)
 

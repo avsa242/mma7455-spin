@@ -5,7 +5,7 @@
     Description: Demo of the MMA7455 driver
     Copyright (c) 2021
     Started Aug 28, 2020
-    Updated May 17, 2021
+    Updated Dec 28, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -109,9 +109,6 @@ PUB Setup{}
         ser.strln(string("MMA7455 driver started (I2C)"))
     else
         ser.strln(string("MMA7455 driver failed to start - halting"))
-        accel.stop{}
-        time.msleep(5)
-        ser.stop{}
         repeat
 
 DAT
