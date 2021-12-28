@@ -232,7 +232,8 @@ PUB AccelSelfTest(state) | curr_state
 ' Enable self-test
 '   Valid values: TRUE (-1 or 1), FALSE (0)
 '   Any other value polls the chip and returns the current setting
-'   NOTE: The datasheet specifies the Z-axis should read between 32 and 83 (64 typ) when the self-test is state
+'   During self-test, the output data changes approximately as follows:
+'       Z: +0.5g..+1.296g (+1.000g typ) (32..83LSB * 15625 micro-g per LSB)
     curr_state := 0
     readreg(core#MCTL, 1, @curr_state)
     case ||(state)
