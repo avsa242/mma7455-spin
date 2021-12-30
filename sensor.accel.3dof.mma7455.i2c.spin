@@ -48,6 +48,21 @@ CON
     Y_AXIS      = 1
     Z_AXIS      = 2
 
+' Clear interrupt pins state
+    INT2        = 1 << 1
+    INT1        = 1 << 0
+
+' Interrupts
+    DRDY        = 1 << 7
+    THSIGNED    = 1 << 6
+    ZTHR        = 1 << 5
+    YTHR        = 1 << 4
+    XTHR        = 1 << 3
+    TH1_PLS2    = %00 << 1                      ' INT1: Thresh, INT2: Pulse
+    PLS1_TH2    = %01 << 1                      ' INT1: Pulse, INT2: Thresh
+    SPLS1_DPLS2 = %10 << 1                      ' INT1: 1x Pulse, INT2: 2x Pulse
+    INTPIN_INV  = 1
+
 VAR
 
     long _ares, _ascl
@@ -82,6 +97,17 @@ PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ): status
 PUB Stop{}
 
     i2c.deinit{}
+
+PUB Preset_Active{}
+' Enable sensor power and set full-scale range
+    accelopmode(MEASURE)
+    accelscale(2)
+
+PUB Preset_ThreshDetect{}
+' Enable sensor power, set full-scale range, and set up
+'   to trigger an interrupt on INT1 when an acceleration threshold is reached
+    accelopmode(LEVELDET)
+    accelscale(2)
 
 PUB AccelBias(bias_x, bias_y, bias_z, rw) | tmp[2]
 ' Read or write/manually set accelerometer calibration offset values
@@ -184,25 +210,107 @@ PUB AccelIntClear(mask)
             mask := 0
             writereg(core#INTRST, 1, @mask)     ' reset bits (not cleared
         other:                                  '   automatically)
+            result := 0
+            readreg(core#INTRST, 1, @result)
             return
 
-PUB AccelIntMask(mask): curr_mask
+PUB AccelInt{}: int_src
+' Accelerometer interrupt source(s)
+'   Bits: 7..0
+'       7: Level detection (X-axis)
+'       6: Level detection (Y-axis)
+'       5: Level detection (Z-axis)
+'       4: Pulse detection (X-axis)
+'       3: Pulse detection (Y-axis)
+'       2: Pulse detection (Z-axis)
+'       1: Interrupt assigned to INT2 asserted
+'       0: Interrupt assigned to INT1 asserted
+    int_src := 0
+    readreg(core#DETSRC, 1, @int_src)
+
+PUB AccelIntMask(mask): curr_mask | drpd
 ' Set accelerometer interrupt mask
-'   Bits: 1..0  INT1                        INT2
-'       %00:    Threshold detection         Pulse/Click/Tap detection
-'       %01:    Pulse/Click/Tap detection   Threshold detection
-'       %10:    Single pulse detection      Single or double pulse detection
+'   Bits 7..0:
+'       7:
+'           Data-ready on INT1 pin (doesn't affect AccelDataReady())
+'       6:
+'           0: AccelIntThresh*() are unsigned (0g..+8g)
+'           1: AccelIntThresh*() are signed (-8g..+8g)
+'       5..3
+'           5: Z-axis detection
+'           4: Y-axis detection
+'           3: X-axis detection
+'       2..1  INT1                        INT2
+'           %00:    Threshold detection         Pulse/Click/Tap detection
+'           %01:    Pulse/Click/Tap detection   Threshold detection
+'           %10:    Single pulse detection      Single/double pulse detection
+'       0:
+'           0: AccelInt() behavior
+'               INT1 bit indicates INT1 interrupt
+'               INT2 bit indicates INT2 interrupt
+'           1: AccelInt() behavior
+'               INT1 bit indicates INT2 interrupt
+'               INT2 bit indicates INT1 interrupt
 '   Any other value polls the chip and returns the current setting
     curr_mask := 0
     readreg(core#CTL1, 1, @curr_mask)
+    drpd := 0
+    readreg(core#MCTL, 1, @drpd)                ' read data-ready enable bit
     case mask
-        %00..%10:
-            mask <<= core#INTREG
+        %0000_0000..%1111_1111:                 ' MSB is for DRPD, not DFBW
+            mask ^= %00_111_000
         other:
-            return ((curr_mask >> core#INTREG) & core#INTREG_BITS)
+            curr_mask := (curr_mask & core#INTMASK_BITS) ^ core#ZYXDA_INV
+            ' ignore all bits from the MCTL reg except the DRPD bit,
+            ' invert it (because 0 is enabled, 1 is disabled),
+            ' and place it in the MSB so it can be combined with the intmask
+            drpd := (((drpd & core#DRPD_BIT) ^ core#DRPD_BIT) << 1)
+            return (curr_mask | drpd)
 
-    mask := ((curr_mask & core#INTREG_MASK) | mask)
+    if (mask & %10000000)                       ' if bit 7 is set,
+        drpd &= core#DRPD_EN                    ' make sure the data-ready
+    else                                        ' function is enabled
+        drpd |= core#DRPD_DIS
+    writereg(core#MCTL, 1, @drpd)
+    mask &= core#INTMASK_BITS
+    mask := ((curr_mask & core#INTMASK_MASK) | mask)
     writereg(core#CTL1, 1, @mask)
+
+PUB AccelIntThreshX(thresh): curr_thr
+' Set interrupt threshold, X-axis
+'   Valid values: 0..8_000000 (0..8g)
+'   Any other value returns the current setting
+'   NOTE: Range is fixed at 0..8g, regardless of AccelScale() setting
+'   NOTE: X, Y, Z axis are locked together (chip limitation);
+'       separate X, Y, Z methods provided for API compatibility
+    return accelintthresh(thresh)
+
+PUB AccelIntThreshY(thresh): curr_thr
+' Set interrupt threshold, Y-axis
+'   Valid values: 0..8_000000 (0..8g)
+'   Any other value returns the current setting
+'   NOTE: Range is fixed at 0..8g, regardless of AccelScale() setting
+'   NOTE: X, Y, Z axis are locked together (chip limitation);
+    return accelintthresh(thresh)
+
+PUB AccelIntThreshZ(thresh): curr_thr
+' Set interrupt threshold, Z-axis
+'   Valid values: 0..8_000000 (0..8g)
+'   Any other value returns the current setting
+'   NOTE: Range is fixed at 0..8g, regardless of AccelScale() setting
+'   NOTE: X, Y, Z axis are locked together (chip limitation);
+    return accelintthresh(thresh)
+
+PRI accelIntThresh(thresh): curr_thr
+' Set interrupt threshold register
+    case thresh
+        0..8_000000:                            ' range is fixed 0..8g
+            thresh /= 62_500                    ' convert to reg range (s8/u8)
+            writereg(core#LDTH, 1, @thresh)
+        other:
+            curr_thr := 0
+            readreg(core#LDTH, 1, @curr_thr)
+            return (~curr_thr * 62_500)         ' convert to micro-g's
 
 PUB AccelOpMode(mode) | curr_mode
 ' Set operating mode

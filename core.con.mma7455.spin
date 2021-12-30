@@ -5,7 +5,7 @@
     Description: MMA7455-specific constants
     Copyright (c) 2021
     Started Nov 27, 2019
-    Updated Dec 28, 2021
+    Updated Dec 30, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -60,6 +60,9 @@ CON
         STON_MASK       = (1 << STON) ^ MCTL_MASK
         GLVL_MASK       = (GLVL_BITS << GLVL) ^ MCTL_MASK
         MODE_MASK       = MODE_BITS ^ MCTL_MASK
+        DRPD_EN         = DRPD_MASK
+        DRPD_DIS        = (1 << DRPD)
+        DRPD_BIT        = (1 << DRPD)
 
     INTRST              = $17
     INTRST_MASK         = $03
@@ -78,14 +81,17 @@ CON
         ZYXDA           = 3
         INTREG          = 1
         INTPIN          = 0
+        INTMASK         = 0                     ' pseudo field: all except DFBW
         ZYXDA_BITS      = %111
         INTREG_BITS     = %11
+        INTMASK_BITS    = %1111111
         DFBW_MASK       = (1 << DFBW) ^ CTL1_MASK
         THOPT_MASK      = (1 << THOPT) ^ CTL1_MASK
         ZYXDA_MASK      = (ZYXDA_BITS << ZYXDA) ^ CTL1_MASK
         INTREG_MASK     = (INTREG_BITS << INTREG) ^ CTL1_MASK
         INTPIN_MASK     = 1 ^ CTL1_MASK
-
+        INTMASK_MASK    = INTMASK_BITS ^ CTL1_MASK
+        ZYXDA_INV       = ZYXDA_BITS << ZYXDA
 
     CTL2                = $19
     LDTH                = $1A

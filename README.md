@@ -12,6 +12,7 @@ This is a P8X32A/Propeller driver object for the NXP MMA7455 3DoF accelerometer
 * Change operating mode (standby, measure, level detection, pulse detection)
 * Data ready and overrun flags
 * Perform calibration and store results in on-chip (volatile) offset registers
+* Interrupts: set threshold, read flags, clear INT1/INT2 state
 
 ## Requirements
 
