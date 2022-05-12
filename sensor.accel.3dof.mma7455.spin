@@ -358,10 +358,6 @@ PUB AccelSelfTest(state) | curr_state
     state := ((curr_state & core#STON_MASK) | state)
     writereg(core#MCTL, 1, @state)
 
-PUB AccelWord2G(accel_word): g
-' Convert from accelerometer ADC word to g's
-    return (accel_word * _ares)
-
 PUB DeviceID{}
 ' Get chip/device ID
 '   Known values: $55
@@ -388,9 +384,6 @@ PUB GyroOpMode(mode)
 PUB GyroScale(scale)
 ' Dummy method
 
-PUB GyroWord2DPS(gyro_word)
-' Dummy method
-
 PUB MagBias(x, y, z, rw)
 ' Dummy method
 
@@ -408,24 +401,6 @@ PUB MagOpMode(mode)
 
 PUB MagScale(scale)
 ' Dummy method
-
-PUB MagXWord2Gauss(mag_word)
-' dummy method
-
-PUB MagYWord2Gauss(mag_word)
-' dummy method
-
-PUB MagZWord2Gauss(mag_word)
-' dummy method
-
-PUB MagXWord2Tesla(mag_word)
-' dummy method
-
-PUB MagYWord2Tesla(mag_word)
-' dummy method
-
-PUB MagZWord2Tesla(mag_word)
-' dummy method
 
 PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Read nr_bytes from slave device into ptr_buff
