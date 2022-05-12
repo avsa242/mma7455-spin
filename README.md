@@ -3,7 +3,7 @@
 
 This is a P8X32A/Propeller driver object for the NXP MMA7455 3DoF accelerometer
 
-**IMPORTANT**: This software is meant to be used with the [spin-standard-library](https://github.com/avsa242/spin-standard-library) (P8X32A) ~~or [p2-spin-standard-library](https://github.com/avsa242/p2-spin-standard-library) (P2X8C4M64P)~~. Please install the applicable library first before attempting to use this code, otherwise you will be missing several files required to build the project.
+**IMPORTANT**: This software is meant to be used with the [spin-standard-library](https://github.com/avsa242/spin-standard-library) (P8X32A) or [p2-spin-standard-library](https://github.com/avsa242/p2-spin-standard-library) (P2X8C4M64P). Please install the applicable library first before attempting to use this code, otherwise you will be missing several files required to build the project.
 
 ## Salient Features
 
@@ -21,14 +21,15 @@ P1/SPIN1:
 * P1/SPIN1: 1 extra core/cog for the PASM I2C engine
 * sensor.imu.common.spinh (provided by spin-standard-library)
 
-~~P2/SPIN2:~~
-* ~~p2-spin-standard-library~~ _(not yet implemented)_
+P2/SPIN2:
+* p2-spin-standard-library
+* sensor.imu.common.spin2h (provided by p2-spin-standard-library)
 
 ## Compiler Compatibility
 
 * P1/SPIN1 FlexSpin (bytecode): OK, tested with 5.9.10-beta
 * P1/SPIN1 FlexSpin (native): OK, tested with 5.9.10-beta
-* P2/SPIN2 FlexSpin (nu-code): Untested
+* P2/SPIN2 FlexSpin (nu-code): FTBFS, tested with 5.9.10-beta
 * P2/SPIN2 FlexSpin (native): OK, tested with 5.9.10-beta
 * P1/SPIN1 OpenSpin (bytecode): Untested (deprecated)
 * ~~BST~~ (incompatible - no preprocessor)
