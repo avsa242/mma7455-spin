@@ -19,17 +19,18 @@ This is a P8X32A/Propeller driver object for the NXP MMA7455 3DoF accelerometer
 P1/SPIN1:
 * spin-standard-library
 * P1/SPIN1: 1 extra core/cog for the PASM I2C engine
+* sensor.imu.common.spinh (provided by spin-standard-library)
 
 ~~P2/SPIN2:~~
-* ~~p2-spin-standard-library~~
+* ~~p2-spin-standard-library~~ _(not yet implemented)_
 
 ## Compiler Compatibility
 
+* P1/SPIN1 FlexSpin (bytecode): OK, tested with 5.9.10-beta
+* P1/SPIN1 FlexSpin (native): OK, tested with 5.9.10-beta
+* P2/SPIN2 FlexSpin (nu-code): Untested
+* P2/SPIN2 FlexSpin (native): OK, tested with 5.9.10-beta
 * P1/SPIN1 OpenSpin (bytecode): Untested (deprecated)
-* P1/SPIN1 FlexSpin (bytecode): OK, tested with 5.9.7-beta
-* P1/SPIN1 FlexSpin (native): OK, tested with 5.9.7-beta
-* ~~P2/SPIN2 FlexSpin (nu-code): FTBFS, tested with 5.9.7-beta~~
-* ~~P2/SPIN2 FlexSpin (native): OK, tested with 5.9.7-beta~~ _(not yet implemented)_
 * ~~BST~~ (incompatible - no preprocessor)
 * ~~Propeller Tool~~ (incompatible - no preprocessor)
 * ~~PNut~~ (incompatible - no preprocessor)
