@@ -43,7 +43,7 @@ PUB Setup{}
     ser.clear{}
     ser.strln(string("Serial terminal started"))
 
-    if (imu.startx(SCL_PIN, SDA_PIN, I2C_FREQ))
+    if (imu.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS))
         ser.strln(string("MMA7455 driver started"))
     else
         ser.strln(string("MMA7455 driver failed to start - halting"))
