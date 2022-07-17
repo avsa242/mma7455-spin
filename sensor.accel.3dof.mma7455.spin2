@@ -1,11 +1,11 @@
 {
     --------------------------------------------
-    Filename: sensor.accel.3dof.mma7455.i2c.spin2
+    Filename: sensor.accel.3dof.mma7455.spin2
     Author: Jesse Burt
     Description: Driver for the NXP/Freescale MMA7455 3-axis accelerometer (P2 version)
     Copyright (c) 2022
     Started May 12, 2022
-    Updated May 12, 2022
+    Updated Jul 17, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -64,7 +64,7 @@ CON
 
 VAR
 
-    long _ares, _ascl
+    long _ascl
 
 OBJ
 
