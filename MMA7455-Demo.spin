@@ -6,7 +6,7 @@
         * 3DoF data output
     Copyright (c) 2022
     Started Aug 28, 2020
-    Updated Jul 17, 2022
+    Updated Oct 1, 2022
     See end of file for terms of use.
     --------------------------------------------
 
@@ -32,28 +32,30 @@ CON
 OBJ
 
     cfg: "core.con.boardcfg.flip"
-    imu: "sensor.accel.3dof.mma7455"
+    accel: "sensor.accel.3dof.mma7455"
     ser: "com.serial.terminal.ansi"
     time: "time"
 
-PUB Setup{}
+PUB setup{}
 
     ser.start(SER_BAUD)
     time.msleep(10)
     ser.clear{}
     ser.strln(string("Serial terminal started"))
 
-    if (imu.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS))
+    if (accel.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS))
         ser.strln(string("MMA7455 driver started"))
     else
         ser.strln(string("MMA7455 driver failed to start - halting"))
         repeat
 
-    imu.preset_active{}
+    accel.preset_active{}
 
-    demo{}
+    repeat
+        ser.position(0, 3)
+        show_accel_data{}
 
-#include "imudemo.common.spinh"                 ' code common to all IMU demos
+#include "acceldemo.common.spinh"                 ' code common to all IMU demos
 
 DAT
 {

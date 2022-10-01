@@ -102,7 +102,7 @@ CON
 ' RESERVED - $1F
 
 
-PUB Null{}
+PUB null{}
 ' This is not a top-level object
 
 DAT

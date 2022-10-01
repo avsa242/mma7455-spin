@@ -6,7 +6,7 @@
         Threshold interrupt functionality
     Copyright (c) 2022
     Started Dec 30, 2021
-    Updated Aug 18, 2022
+    Updated Oct 1, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -44,14 +44,14 @@ VAR
     long _isr_stack[50]                         ' stack for ISR core
     long _intflag                               ' interrupt flag
 
-PUB Main{}
+PUB main{}
 
     setup{}
 
-    accel.preset_threshdetect{}                 ' set up for accel threshold
+    accel.preset_thresh_detect{}                ' set up for accel threshold
                                                 '   detection
 
-    accel.accelintclear(accel#INT1 | accel#INT2)' clear INT1 and INT2
+    accel.accel_int_clr(accel#INT1 | accel#INT2)' clear INT1 and INT2
 
     ' Set threshold to 1.0g, and enable detection on X axis only
     ' NOTE: Though there are threshold setting methods for all three
@@ -59,24 +59,24 @@ PUB Main{}
     '   for API-compatibility with other chips that have the ability to
     '   set independent thresholds.
     ' NOTE: The full-scale range of the threshold setting is 8g's,
-    '   regardless of what AccelScale() is set to.
-    accel.accelintthreshz(1_000000)
-    accel.accelintmask(accel#XTHR)
+    '   regardless of what accel.accel_scale() is set to.
+    accel.accel_int_set_thresh(1_000000)
+    accel.accel_int_mask(accel#XTHR)
 
     repeat
         ser.position(0, 3)
-        acceldata{}
-        if _intflag
+        show_accel_data{}
+        if (_intflag)
             ser.position(0, 5)
             ser.strln(string("Interrupt"))
             repeat until ser.charin{}
-            accel.accelintclear(%11)            ' must clear interrupts
+            accel.accel_int_clr(%11)            ' must clear interrupts
             ser.position(0, 5)
             ser.clearline{}
-        if ser.rxcheck{} == "c"                 ' press the 'c' key in the demo
+        if (ser.rxcheck{} == "c")               ' press the 'c' key in the demo
             cal_accel{}                         ' to calibrate sensor offsets
 
-PRI ISR{}
+PRI cog_isr{}
 ' Interrupt service routine
     dira[INT1] := 0                             ' INT1 as input
     repeat
@@ -85,7 +85,7 @@ PRI ISR{}
         waitpne(|< INT1, |< INT1, 0)            ' now wait for it to clear
         _intflag := 0                           '   clear flag
 
-PUB Setup{}
+PUB setup{}
 
     ser.start(SER_BAUD)
     time.msleep(30)
@@ -98,7 +98,7 @@ PUB Setup{}
         ser.strln(string("MMA7455 driver failed to start - halting"))
         repeat
 
-    cognew(isr, @_isr_stack)                    ' start ISR in another core
+    cognew(cog_isr{}, @_isr_stack)                    ' start ISR in another core
 
 #include "acceldemo.common.spinh"
 
