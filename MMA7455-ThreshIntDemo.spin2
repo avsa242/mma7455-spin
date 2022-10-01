@@ -97,7 +97,7 @@ PUB setup()
         ser.strln(@"MMA7455 driver failed to start - halting")
         repeat
 
-    cogspin(NEWCOG, cog_isr{}, @_isr_stack)                    ' start ISR in another core
+    cogspin(NEWCOG, cog_isr(), @_isr_stack)                    ' start ISR in another core
 
 #include "acceldemo.common.spin2h"
 
