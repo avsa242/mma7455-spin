@@ -6,7 +6,7 @@
         * 3DoF data output
     Copyright (c) 2022
     Started Aug 28, 2020
-    Updated Oct 1, 2022
+    Updated Oct 16, 2022
     See end of file for terms of use.
     --------------------------------------------
 
@@ -31,8 +31,8 @@ CON
 
 OBJ
 
-    cfg: "core.con.boardcfg.flip"
-    accel: "sensor.accel.3dof.mma7455"
+    cfg: "boardcfg.flip"
+    sensor: "sensor.accel.3dof.mma7455"
     ser: "com.serial.terminal.ansi"
     time: "time"
 
@@ -43,13 +43,13 @@ PUB setup{}
     ser.clear{}
     ser.strln(string("Serial terminal started"))
 
-    if (accel.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS))
+    if (sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS))
         ser.strln(string("MMA7455 driver started"))
     else
         ser.strln(string("MMA7455 driver failed to start - halting"))
         repeat
 
-    accel.preset_active{}
+    sensor.preset_active{}
 
     repeat
         ser.position(0, 3)
