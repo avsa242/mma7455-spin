@@ -6,7 +6,7 @@
         Threshold interrupt functionality
     Copyright (c) 2022
     Started Dec 30, 2021
-    Updated Oct 1, 2022
+    Updated Oct 31, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -37,7 +37,7 @@ OBJ
     cfg     : "boardcfg.flip"
     ser     : "com.serial.terminal.ansi"
     time    : "time"
-    accel   : "sensor.accel.3dof.mma7455"
+    sensor  : "sensor.accel.3dof.mma7455"
 
 VAR
 
@@ -48,10 +48,10 @@ PUB main{}
 
     setup{}
 
-    accel.preset_thresh_detect{}                ' set up for accel threshold
+    sensor.preset_thresh_detect{}                ' set up for accel threshold
                                                 '   detection
 
-    accel.accel_int_clr(accel#INT1 | accel#INT2)' clear INT1 and INT2
+    sensor.accel_int_clr(sensor#INT1 | sensor#INT2)' clear INT1 and INT2
 
     ' Set threshold to 1.0g, and enable detection on X axis only
     ' NOTE: Though there are threshold setting methods for all three
@@ -59,9 +59,9 @@ PUB main{}
     '   for API-compatibility with other chips that have the ability to
     '   set independent thresholds.
     ' NOTE: The full-scale range of the threshold setting is 8g's,
-    '   regardless of what accel.accel_scale() is set to.
-    accel.accel_int_set_thresh(1_000000)
-    accel.accel_int_mask(accel#XTHR)
+    '   regardless of what sensor.accel_scale() is set to.
+    sensor.accel_int_set_thresh(1_000000)
+    sensor.accel_int_mask(sensor#XTHR)
 
     repeat
         ser.position(0, 3)
@@ -70,7 +70,7 @@ PUB main{}
             ser.position(0, 5)
             ser.strln(string("Interrupt"))
             repeat until ser.charin{}
-            accel.accel_int_clr(%11)            ' must clear interrupts
+            sensor.accel_int_clr(%11)            ' must clear interrupts
             ser.position(0, 5)
             ser.clearline{}
         if (ser.rxcheck{} == "c")               ' press the 'c' key in the demo
@@ -92,7 +92,7 @@ PUB setup{}
     ser.clear{}
     ser.strln(string("Serial terminal started"))
 
-    if accel.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS)
+    if sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS)
         ser.strln(string("MMA7455 driver started (I2C)"))
     else
         ser.strln(string("MMA7455 driver failed to start - halting"))
