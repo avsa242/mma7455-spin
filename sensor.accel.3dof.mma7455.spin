@@ -5,7 +5,7 @@
     Description: Driver for the NXP/Freescale MMA7455 3-axis accelerometer
     Copyright (c) 2022
     Started Nov 27, 2019
-    Updated Oct 1, 2022
+    Updated Nov 5, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -174,12 +174,14 @@ PUB accel_data_rate(rate): curr_rate
 PUB accel_data_overrun{}: flag
 ' Flag indicating previously acquired data has been overwritten
 '   Returns: TRUE (-1) if data has overflowed/been overwritten, FALSE otherwise
+    flag := 0
     readreg(core#STATUS, 1, @flag)
     return (((flag >> core#DOVR) & 1) == 1)
 
 PUB accel_data_rdy{}: flag
 ' Flag indicating data is ready
 '   Returns: TRUE (-1) if data ready, FALSE otherwise
+    flag := 0
     readreg(core#STATUS, 1, @flag)
     return ((flag & 1) == 1)
 
