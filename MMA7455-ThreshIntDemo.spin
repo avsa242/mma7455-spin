@@ -6,7 +6,7 @@
         Threshold interrupt functionality
     Copyright (c) 2022
     Started Dec 30, 2021
-    Updated Oct 31, 2022
+    Updated Nov 5, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -64,15 +64,15 @@ PUB main{}
     sensor.accel_int_mask(sensor#XTHR)
 
     repeat
-        ser.position(0, 3)
+        ser.pos_xy(0, 3)
         show_accel_data{}
         if (_intflag)
-            ser.position(0, 5)
+            ser.pos_xy(0, 5)
             ser.strln(string("Interrupt"))
-            repeat until ser.charin{}
-            sensor.accel_int_clr(%11)            ' must clear interrupts
-            ser.position(0, 5)
-            ser.clearline{}
+            ser.getchar{}                       ' wait for keypress
+            sensor.accel_int_clr(%11)           ' must clear interrupts
+            ser.pos_xy(0, 5)
+            ser.clear_line{}
         if (ser.rxcheck{} == "c")               ' press the 'c' key in the demo
             cal_accel{}                         ' to calibrate sensor offsets
 
