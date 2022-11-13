@@ -5,7 +5,7 @@
     Description: Driver for the NXP/Freescale MMA7455 3-axis accelerometer
     Copyright (c) 2022
     Started Nov 27, 2019
-    Updated Nov 5, 2022
+    Updated Nov 13, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -185,7 +185,7 @@ PUB accel_int{}: int_src
     int_src := 0
     readreg(core#DETSRC, 1, @int_src)
 
-PUB accel_int_clr(mask)
+PUB accel_int_clear(mask)
 ' Clear accelerometer interrupts
 '   Bits: 1..0
 '       1: Clear INT2 interrupt

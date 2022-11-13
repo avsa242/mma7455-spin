@@ -51,7 +51,7 @@ PUB main{}
     sensor.preset_thresh_detect{}                ' set up for accel threshold
                                                 '   detection
 
-    sensor.accel_int_clr(sensor#INT1 | sensor#INT2)' clear INT1 and INT2
+    sensor.accel_int_clear(sensor#INT1 | sensor#INT2)' clear INT1 and INT2
 
     ' Set threshold to 1.0g, and enable detection on X axis only
     ' NOTE: Though there are threshold setting methods for all three
@@ -70,7 +70,7 @@ PUB main{}
             ser.pos_xy(0, 5)
             ser.strln(string("Interrupt"))
             ser.getchar{}                       ' wait for keypress
-            sensor.accel_int_clr(%11)           ' must clear interrupts
+            sensor.accel_int_clear(%11)           ' must clear interrupts
             ser.pos_xy(0, 5)
             ser.clear_line{}
         if (ser.rxcheck{} == "c")               ' press the 'c' key in the demo
