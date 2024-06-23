@@ -1,14 +1,14 @@
 {
-    --------------------------------------------
-    Filename: sensor.accel.3dof.mma7455.spin2
-    Author: Jesse Burt
-    Description: Driver for the NXP/Freescale MMA7455 3-axis accelerometer (P2 version)
-    Copyright (c) 2022
-    Started May 12, 2022
-    Updated Nov 13, 2022
-    See end of file for terms of use.
-    --------------------------------------------
+---------------------------------------------------------------------------------------------------
+    Filename:       sensor.accel.3dof.mma7455.spin2
+    Description:    Driver for the NXP/Freescale MMA7455 3-axis accelerometer
+    Author:         Jesse Burt
+    Started:        May 12, 2022
+    Updated:        Jun 23, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+---------------------------------------------------------------------------------------------------
 }
+
 #include "sensor.accel.common.spin2h"
 
 CON
@@ -63,18 +63,22 @@ CON
     SPLS1_DPLS2 = %10 << 1                      ' INT1: 1x Pulse, INT2: 2x Pulse
     INTPIN_INV  = 1
 
+
 VAR
 
     long _ascl
     byte _addr_bits
 
+
 OBJ
 
-    i2c : "com.i2c"
-    core: "core.con.mma7455"
+    i2c:    "com.i2c"
+    core:   "core.con.mma7455"
+
 
 PUB null()
 'This is not a top-level object
+
 
 PUB startx(SCL_PIN, SDA_PIN, I2C_HZ=DEF_HZ, ADDR_BITS=0): status
 ' Start using custom settings
@@ -89,20 +93,24 @@ PUB startx(SCL_PIN, SDA_PIN, I2C_HZ=DEF_HZ, ADDR_BITS=0): status
     ' Lastly - make sure you have at least one free core/cog
     return FALSE
 
+
 PUB stop()
 ' Stop the driver
     i2c.deinit()
+
 
 PUB preset_active()
 ' Enable sensor power and set full-scale range
     accel_opmode(MEASURE)
     accel_scale(2)
 
+
 PUB preset_thresh_detect()
 ' Enable sensor power, set full-scale range, and set up
 '   to trigger an interrupt on INT1 when an acceleration threshold is reached
     accel_opmode(LEVELDET)
     accel_scale(2)
+
 
 PUB accel_bias(x, y, z) | tmp[2]
 ' Read accelerometer calibration offset values
@@ -111,6 +119,7 @@ PUB accel_bias(x, y, z) | tmp[2]
     long[x] := (((tmp.word[X_AXIS] << 22) sar 22) * 2)
     long[y] := (((tmp.word[Y_AXIS] << 22) sar 22) * 2)
     long[z] := (((tmp.word[Z_AXIS] << 22) sar 22) * 2)
+
 
 PUB accel_data(ptr_x, ptr_y, ptr_z) | tmp[2]
 ' Reads the Accelerometer output registers
@@ -127,6 +136,7 @@ PUB accel_data(ptr_x, ptr_y, ptr_z) | tmp[2]
             long[ptr_x] := (tmp.word[X_AXIS] << 22) sar 22
             long[ptr_y] := (tmp.word[Y_AXIS] << 22) sar 22
             long[ptr_z] := (tmp.word[Z_AXIS] << 22) sar 22
+
 
 PUB accel_data_rate(rate=-2): curr_rate
 ' Set accelerometer output data rate, in Hz
@@ -145,6 +155,7 @@ PUB accel_data_rate(rate=-2): curr_rate
     rate := ((curr_rate & core.DFBW_MASK) | rate)
     writereg(core.CTL1, 1, @rate)
 
+
 PUB accel_data_overrun(): flag
 ' Flag indicating previously acquired data has been overwritten
 '   Returns: TRUE (-1) if data has overflowed/been overwritten, FALSE otherwise
@@ -152,12 +163,14 @@ PUB accel_data_overrun(): flag
     readreg(core.STATUS, 1, @flag)
     return (((flag >> core.DOVR) & 1) == 1)
 
+
 PUB accel_data_rdy(): flag
 ' Flag indicating data is ready
 '   Returns: TRUE (-1) if data ready, FALSE otherwise
     flag := 0
     readreg(core.STATUS, 1, @flag)
     return ((flag & 1) == 1)
+
 
 PUB accel_int(): int_src
 ' Accelerometer interrupt source(s)
@@ -173,6 +186,7 @@ PUB accel_int(): int_src
     int_src := 0
     readreg(core.DETSRC, 1, @int_src)
 
+
 PUB accel_int_clear(mask)
 ' Clear accelerometer interrupts
 '   Bits: 1..0
@@ -185,6 +199,7 @@ PUB accel_int_clear(mask)
             mask := 0
             writereg(core.INTRST, 1, @mask)     ' reset bits (not cleared
                                                 '   automatically)
+
 
 PUB accel_int_mask(mask=-2): curr_mask | drpd
 ' Set accelerometer interrupt mask
@@ -234,11 +249,13 @@ PUB accel_int_mask(mask=-2): curr_mask | drpd
     mask := ((curr_mask & core.INTMASK_MASK) | mask)
     writereg(core.CTL1, 1, @mask)
 
+
 PUB accel_int_set_thresh(thresh)
 ' Set interrupt threshold
 '   Valid values: 0..8_000000 (0..8g's; clamped to range)
     thresh := ((0 #> thresh <# 8_000000) / 62_500)
     writereg(core.LDTH, 1, @thresh)
+
 
 PUB accel_int_thresh_x(thresh=-2): curr_thr
 ' Set interrupt threshold, X-axis
@@ -248,6 +265,7 @@ PUB accel_int_thresh_x(thresh=-2): curr_thr
 '       separate X, Y, Z methods provided for API compatibility
     accel_int_set_thresh(thresh)
 
+
 PUB accel_int_thresh_y(thresh=-2): curr_thr
 ' Set interrupt threshold, Y-axis
 '   Any other value returns the current setting
@@ -255,6 +273,7 @@ PUB accel_int_thresh_y(thresh=-2): curr_thr
 '   NOTE: X, Y, Z axis are locked together (chip limitation);
 '       separate X, Y, Z methods provided for API compatibility
     accel_int_set_thresh(thresh)
+
 
 PUB accel_int_thresh_z(thresh=-2): curr_thr
 ' Set interrupt threshold, Z-axis
@@ -264,11 +283,13 @@ PUB accel_int_thresh_z(thresh=-2): curr_thr
 '       separate X, Y, Z methods provided for API compatibility
     accel_int_set_thresh(thresh)
 
+
 PUB accel_int_thresh(): thresh
 ' Get interrupt threshold
     thresh := 0
     readreg(core.LDTH, 1, @thresh)
     return ((thresh signx 7) * 62_500)         ' convert to micro-g's
+
 
 PUB accel_opmode(mode=-2) | curr_mode
 ' Set operating mode
@@ -287,6 +308,7 @@ PUB accel_opmode(mode=-2) | curr_mode
 
     mode := ((curr_mode & core.MODE_MASK) | mode)
     writereg(core.MCTL, 1, @mode)
+
 
 PUB accel_scale(scale=-2): curr_scl
 ' Set measurement range of the accelerometer, in g's
@@ -308,6 +330,7 @@ PUB accel_scale(scale=-2): curr_scl
     scale := ((curr_scl & core.GLVL_MASK) | scale)
     writereg(core.MCTL, 1, @scale)
 
+
 PUB accel_self_test(state=-2) | curr_state
 ' Enable self-test
 '   Valid values: TRUE (-1 or 1), FALSE (0)
@@ -325,6 +348,7 @@ PUB accel_self_test(state=-2) | curr_state
     state := ((curr_state & core.STON_MASK) | state)
     writereg(core.MCTL, 1, @state)
 
+
 PUB accel_set_bias(x, y, z)
 ' Write accelerometer calibration offset values
 '   Valid values:
@@ -339,13 +363,15 @@ PUB accel_set_bias(x, y, z)
     writereg(core.YOFFL, 2, @y)
     writereg(core.ZOFFL, 2, @z)
 
+
 PUB dev_id(): id
 ' Get chip/device ID
 '   Known values: $55
     id := 0
     readreg(core.WHOAMI, 1, @id)
 
-PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
+
+PRI readreg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Read nr_bytes from slave device into ptr_buff
     case reg_nr
         $00..$0B, $0D..$1E:
@@ -361,6 +387,7 @@ PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
         other:
             return
 
+
 PRI writeReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Write nr_bytes from ptr_buff to slave device
     case reg_nr
@@ -374,9 +401,10 @@ PRI writeReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
         other:
             return
 
+
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,

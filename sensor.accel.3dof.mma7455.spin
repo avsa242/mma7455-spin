@@ -1,26 +1,26 @@
 {
-    --------------------------------------------
-    Filename: sensor.accel.3dof.mma7455.spin
-    Author: Jesse Burt
-    Description: Driver for the NXP/Freescale MMA7455 3-axis accelerometer
-    Copyright (c) 2022
-    Started Nov 27, 2019
-    Updated Nov 13, 2022
-    See end of file for terms of use.
-    --------------------------------------------
+---------------------------------------------------------------------------------------------------
+    Filename:       sensor.accel.3dof.mma7455.spin
+    Description:    Driver for the NXP/Freescale MMA7455 3-axis accelerometer
+    Author:         Jesse Burt
+    Started:        Nov 27, 2019
+    Updated:        Jun 23, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+---------------------------------------------------------------------------------------------------
 }
+
 #include "sensor.accel.common.spinh"
 
 CON
 
-    SLAVE_WR    = core#SLAVE_ADDR
-    SLAVE_RD    = core#SLAVE_ADDR|1
+    SLAVE_WR    = core.SLAVE_ADDR
+    SLAVE_RD    = core.SLAVE_ADDR|1
 
     DEF_SCL     = 28
     DEF_SDA     = 29
     DEF_HZ      = 100_000
     DEF_ADDR    = 0
-    I2C_MAX_FREQ= core#I2C_MAX_FREQ
+    I2C_MAX_FREQ= core.I2C_MAX_FREQ
 
 ' Indicate to user apps how many Degrees of Freedom each sub-sensor has
 '   (also imply whether or not it has a particular sensor)
@@ -65,80 +65,91 @@ CON
     SPLS1_DPLS2 = %10 << 1                      ' INT1: 1x Pulse, INT2: 2x Pulse
     INTPIN_INV  = 1
 
+
 VAR
 
     long _ascl
     byte _addr_bits
 
+
 OBJ
 
 { decide: Bytecode I2C engine, or PASM? Default is PASM if BC isn't specified }
 #ifdef MMA7455_I2C_BC
-    i2c : "com.i2c.nocog"                       ' BC I2C engine
+    i2c:    "com.i2c.nocog"                       ' BC I2C engine
 #else
-    i2c : "com.i2c"                             ' PASM I2C engine
+    i2c:    "com.i2c"                             ' PASM I2C engine
 #endif
-    core: "core.con.mma7455"
-    time: "time"
+    core:   "core.con.mma7455"
+    time:   "time"
 
-PUB null{}
+
+PUB null()
 'This is not a top-level object
 
-PUB start{}: status
+
+PUB start(): status
 ' Start using "standard" Propeller I2C pins and 100kHz
     return startx(DEF_SCL, DEF_SDA, DEF_HZ, DEF_ADDR)
 
+
 PUB startx(SCL_PIN, SDA_PIN, I2C_HZ, ADDR_BITS): status
 ' Start using custom settings
-    if (lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31) and I2C_HZ =< core#I2C_MAX_FREQ)
+    if (lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31) and I2C_HZ =< core.I2C_MAX_FREQ)
         if (status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ))
             time.msleep(1)
             _addr_bits := (ADDR_BITS << 1)
-            if (dev_id{} == core#DEVID_RESP)
+            if (dev_id() == core.DEVID_RESP)
                 return
     ' if this point is reached, something above failed
     ' Double check I/O pin assignments, connections, power
     ' Lastly - make sure you have at least one free core/cog
     return FALSE
 
-PUB stop{}
-' Stop the driver
-    i2c.deinit{}
 
-PUB preset_active{}
+PUB stop()
+' Stop the driver
+    i2c.deinit()
+
+
+PUB preset_active()
 ' Enable sensor power and set full-scale range
     accel_opmode(MEASURE)
     accel_scale(2)
 
-PUB preset_thresh_detect{}
+
+PUB preset_thresh_detect()
 ' Enable sensor power, set full-scale range, and set up
 '   to trigger an interrupt on INT1 when an acceleration threshold is reached
     accel_opmode(LEVELDET)
     accel_scale(2)
 
+
 PUB accel_bias(x, y, z) | tmp[2]
 ' Read accelerometer calibration offset values
 '   x, y, z: pointers to copy offsets to
-    readreg(core#XOFFL, 6, @tmp)
+    readreg(core.XOFFL, 6, @tmp)
     long[x] := (((tmp.word[X_AXIS] << 22) ~> 22) * 2)
     long[y] := (((tmp.word[Y_AXIS] << 22) ~> 22) * 2)
     long[z] := (((tmp.word[Z_AXIS] << 22) ~> 22) * 2)
+
 
 PUB accel_data(ptr_x, ptr_y, ptr_z) | tmp[2]
 ' Reads the Accelerometer output registers
     longfill(@tmp, 0, 2)
     case _ascl
         2, 4:                                   ' 2g/4g (8-bit)
-            readreg(core#XOUT8, 3, @tmp)
+            readreg(core.XOUT8, 3, @tmp)
             long[ptr_x] := ~tmp.byte[X_AXIS]
             long[ptr_y] := ~tmp.byte[Y_AXIS]
             long[ptr_z] := ~tmp.byte[Z_AXIS]
         8:                                      ' 8g (10-bit)
-            readreg(core#XOUTL, 6, @tmp)
+            readreg(core.XOUTL, 6, @tmp)
             ' extend sign
             long[ptr_x] := (tmp.word[X_AXIS] << 22) ~> 22
             long[ptr_y] := (tmp.word[Y_AXIS] << 22) ~> 22
             long[ptr_z] := (tmp.word[Z_AXIS] << 22) ~> 22
+
 
 PUB accel_data_rate(rate): curr_rate
 ' Set accelerometer output data rate, in Hz
@@ -146,32 +157,35 @@ PUB accel_data_rate(rate): curr_rate
 '       125, 250
 '   Any other value polls the chip and returns the current setting
     curr_rate := 0
-    readreg(core#CTL1, 1, @curr_rate)
+    readreg(core.CTL1, 1, @curr_rate)
     case rate
         125, 250:
-            rate := lookdownz(rate: 125, 250) << core#DFBW
+            rate := lookdownz(rate: 125, 250) << core.DFBW
         other:
-            curr_rate := ((curr_rate >> core#DFBW) & 1)
+            curr_rate := ((curr_rate >> core.DFBW) & 1)
             return lookupz(curr_rate: 125, 250)
 
-    rate := ((curr_rate & core#DFBW_MASK) | rate)
-    writereg(core#CTL1, 1, @rate)
+    rate := ((curr_rate & core.DFBW_MASK) | rate)
+    writereg(core.CTL1, 1, @rate)
 
-PUB accel_data_overrun{}: flag
+
+PUB accel_data_overrun(): flag
 ' Flag indicating previously acquired data has been overwritten
 '   Returns: TRUE (-1) if data has overflowed/been overwritten, FALSE otherwise
     flag := 0
-    readreg(core#STATUS, 1, @flag)
-    return (((flag >> core#DOVR) & 1) == 1)
+    readreg(core.STATUS, 1, @flag)
+    return (((flag >> core.DOVR) & 1) == 1)
 
-PUB accel_data_rdy{}: flag
+
+PUB accel_data_rdy(): flag
 ' Flag indicating data is ready
 '   Returns: TRUE (-1) if data ready, FALSE otherwise
     flag := 0
-    readreg(core#STATUS, 1, @flag)
+    readreg(core.STATUS, 1, @flag)
     return ((flag & 1) == 1)
 
-PUB accel_int{}: int_src
+
+PUB accel_int(): int_src
 ' Accelerometer interrupt source(s)
 '   Bits: 7..0
 '       7: Level detection (X-axis)
@@ -183,7 +197,8 @@ PUB accel_int{}: int_src
 '       1: Interrupt assigned to INT2 asserted
 '       0: Interrupt assigned to INT1 asserted
     int_src := 0
-    readreg(core#DETSRC, 1, @int_src)
+    readreg(core.DETSRC, 1, @int_src)
+
 
 PUB accel_int_clear(mask)
 ' Clear accelerometer interrupts
@@ -193,10 +208,11 @@ PUB accel_int_clear(mask)
 '   Any other value is ignored
     case mask
         %00..%11:
-            writereg(core#INTRST, 1, @mask)     ' clear interrupts
+            writereg(core.INTRST, 1, @mask)     ' clear interrupts
             mask := 0
-            writereg(core#INTRST, 1, @mask)     ' reset bits (not cleared
+            writereg(core.INTRST, 1, @mask)     ' reset bits (not cleared
                                                 '   automatically)
+
 
 PUB accel_int_mask(mask): curr_mask | drpd
 ' Set accelerometer interrupt mask
@@ -223,34 +239,36 @@ PUB accel_int_mask(mask): curr_mask | drpd
 '               INT2 bit indicates INT1 interrupt
 '   Any other value polls the chip and returns the current setting
     curr_mask := 0
-    readreg(core#CTL1, 1, @curr_mask)
+    readreg(core.CTL1, 1, @curr_mask)
     drpd := 0
-    readreg(core#MCTL, 1, @drpd)                ' read data-ready enable bit
+    readreg(core.MCTL, 1, @drpd)                ' read data-ready enable bit
     case mask
         %0000_0000..%1111_1111:                 ' MSB is for DRPD, not DFBW
             mask ^= %00_111_000
         other:
-            curr_mask := (curr_mask & core#INTMASK_BITS) ^ core#ZYXDA_INV
+            curr_mask := (curr_mask & core.INTMASK_BITS) ^ core.ZYXDA_INV
             ' ignore all bits from the MCTL reg except the DRPD bit,
             ' invert it (because 0 is enabled, 1 is disabled),
             ' and place it in the MSB so it can be combined with the intmask
-            drpd := (((drpd & core#DRPD_BIT) ^ core#DRPD_BIT) << 1)
+            drpd := (((drpd & core.DRPD_BIT) ^ core.DRPD_BIT) << 1)
             return (curr_mask | drpd)
 
     if (mask & %10000000)                       ' if bit 7 is set,
-        drpd &= core#DRPD_EN                    ' make sure the data-ready
+        drpd &= core.DRPD_EN                    ' make sure the data-ready
     else                                        ' function is enabled
-        drpd |= core#DRPD_DIS
-    writereg(core#MCTL, 1, @drpd)
-    mask &= core#INTMASK_BITS
-    mask := ((curr_mask & core#INTMASK_MASK) | mask)
-    writereg(core#CTL1, 1, @mask)
+        drpd |= core.DRPD_DIS
+    writereg(core.MCTL, 1, @drpd)
+    mask &= core.INTMASK_BITS
+    mask := ((curr_mask & core.INTMASK_MASK) | mask)
+    writereg(core.CTL1, 1, @mask)
+
 
 PUB accel_int_set_thresh(thresh)
 ' Set interrupt threshold
 '   Valid values: 0..8_000000 (0..8g's; clamped to range)
     thresh := ((0 #> thresh <# 8_000000) / 62_500)
-    writereg(core#LDTH, 1, @thresh)
+    writereg(core.LDTH, 1, @thresh)
+
 
 PUB accel_int_thresh_x(thresh): curr_thr
 ' Set interrupt threshold, X-axis
@@ -260,6 +278,7 @@ PUB accel_int_thresh_x(thresh): curr_thr
 '       separate X, Y, Z methods provided for API compatibility
     accel_int_set_thresh(thresh)
 
+
 PUB accel_int_thresh_y(thresh): curr_thr
 ' Set interrupt threshold, Y-axis
 '   Any other value returns the current setting
@@ -267,6 +286,7 @@ PUB accel_int_thresh_y(thresh): curr_thr
 '   NOTE: X, Y, Z axis are locked together (chip limitation);
 '       separate X, Y, Z methods provided for API compatibility
     accel_int_set_thresh(thresh)
+
 
 PUB accel_int_thresh_z(thresh): curr_thr
 ' Set interrupt threshold, Z-axis
@@ -276,11 +296,13 @@ PUB accel_int_thresh_z(thresh): curr_thr
 '       separate X, Y, Z methods provided for API compatibility
     accel_int_set_thresh(thresh)
 
-PUB accel_int_thresh{}: thresh
+
+PUB accel_int_thresh(): thresh
 ' Get interrupt threshold
     thresh := 0
-    readreg(core#LDTH, 1, @thresh)
+    readreg(core.LDTH, 1, @thresh)
     return (~thresh * 62_500)         ' convert to micro-g's
+
 
 PUB accel_opmode(mode) | curr_mode
 ' Set operating mode
@@ -291,34 +313,36 @@ PUB accel_opmode(mode) | curr_mode
 '       PULSEDET (%11): Pulse detection mode
 '   Any other value polls the chip and returns the current setting
     curr_mode := 0
-    readreg(core#MCTL, 1, @curr_mode)
+    readreg(core.MCTL, 1, @curr_mode)
     case mode
         STANDBY, MEASURE, LEVELDET, PULSEDET:
         other:
-            return curr_mode & core#MODE_BITS
+            return curr_mode & core.MODE_BITS
 
-    mode := ((curr_mode & core#MODE_MASK) | mode)
-    writereg(core#MCTL, 1, @mode)
+    mode := ((curr_mode & core.MODE_MASK) | mode)
+    writereg(core.MCTL, 1, @mode)
+
 
 PUB accel_scale(scale): curr_scl
 ' Set measurement range of the accelerometer, in g's
 '   Valid values: 2, 4, *8
 '   Any other value polls the chip and returns the current setting
     curr_scl := 0
-    readreg(core#MCTL, 1, @curr_scl)
+    readreg(core.MCTL, 1, @curr_scl)
     case scale
         2, 4:
             _ares := (2_000000 * scale) / 256   ' 8-bit output
         8:
             _ares := (2_000000 * scale) / 1024  ' 10-bit output
         other:
-            curr_scl := (curr_scl >> core#GLVL) & core#GLVL_BITS
+            curr_scl := (curr_scl >> core.GLVL) & core.GLVL_BITS
             return lookupz(curr_scl: 8, 2, 4)
 
     _ascl := scale
-    scale := lookdownz(scale: 8, 2, 4) << core#GLVL
-    scale := ((curr_scl & core#GLVL_MASK) | scale)
-    writereg(core#MCTL, 1, @scale)
+    scale := lookdownz(scale: 8, 2, 4) << core.GLVL
+    scale := ((curr_scl & core.GLVL_MASK) | scale)
+    writereg(core.MCTL, 1, @scale)
+
 
 PUB accel_self_test(state) | curr_state
 ' Enable self-test
@@ -327,15 +351,16 @@ PUB accel_self_test(state) | curr_state
 '   During self-test, the output data changes approximately as follows:
 '       Z: +0.5g..+1.296g (+1.000g typ) (32..83LSB * 15625 micro-g per LSB)
     curr_state := 0
-    readreg(core#MCTL, 1, @curr_state)
+    readreg(core.MCTL, 1, @curr_state)
     case ||(state)
         0, 1:
-            state := ||(state) << core#STON
+            state := ||(state) << core.STON
         other:
-            return (((curr_state >> core#STON) & 1) == 1)
+            return (((curr_state >> core.STON) & 1) == 1)
 
-    state := ((curr_state & core#STON_MASK) | state)
-    writereg(core#MCTL, 1, @state)
+    state := ((curr_state & core.STON_MASK) | state)
+    writereg(core.MCTL, 1, @state)
+
 
 PUB accel_set_bias(x, y, z)
 ' Write accelerometer calibration offset values
@@ -347,48 +372,52 @@ PUB accel_set_bias(x, y, z)
     x := (-512 #> x <# 511) * -2
     y := (-512 #> y <# 511) * -2
     z := (-512 #> z <# 511) * -2
-    writereg(core#XOFFL, 2, @x)
-    writereg(core#YOFFL, 2, @y)
-    writereg(core#ZOFFL, 2, @z)
+    writereg(core.XOFFL, 2, @x)
+    writereg(core.YOFFL, 2, @y)
+    writereg(core.ZOFFL, 2, @z)
 
-PUB dev_id{}: id
+
+PUB dev_id(): id
 ' Get chip/device ID
 '   Known values: $55
     id := 0
-    readreg(core#WHOAMI, 1, @id)
+    readreg(core.WHOAMI, 1, @id)
 
-PRI readReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
+
+PRI readreg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Read nr_bytes from slave device into ptr_buff
     case reg_nr
         $00..$0B, $0D..$1E:
             cmd_pkt.byte[0] := (SLAVE_WR | _addr_bits)
             cmd_pkt.byte[1] := reg_nr
-            i2c.start{}
+            i2c.start()
             i2c.wrblock_lsbf(@cmd_pkt, 2)
 
-            i2c.start{}
+            i2c.start()
             i2c.write(SLAVE_RD | _addr_bits)
             i2c.rdblock_lsbf(ptr_buff, nr_bytes, TRUE)
-            i2c.stop{}
+            i2c.stop()
         other:
             return
 
-PRI writeReg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
+
+PRI writereg(reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Write nr_bytes from ptr_buff to slave device
     case reg_nr
         $10..$1E:
             cmd_pkt.byte[0] := (SLAVE_WR | _addr_bits)
             cmd_pkt.byte[1] := reg_nr
-            i2c.start{}
+            i2c.start()
             i2c.wrblock_lsbf(@cmd_pkt, 2)
             i2c.wrblock_lsbf(ptr_buff, nr_bytes)
-            i2c.stop{}
+            i2c.stop()
         other:
             return
 
+
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,

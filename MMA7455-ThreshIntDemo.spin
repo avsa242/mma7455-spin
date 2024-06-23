@@ -1,23 +1,27 @@
 {
-    --------------------------------------------
-    Filename: MMA7455-ThreshIntDemo.spin
-    Author: Jesse Burt
-    Description: Demo of the MMA7455 driver
-        Threshold interrupt functionality
-    Copyright (c) 2022
-    Started Dec 30, 2021
-    Updated Nov 5, 2022
-    See end of file for terms of use.
-    --------------------------------------------
+---------------------------------------------------------------------------------------------------
+    Filename:       MMA7455-ThreshIntDemo.spin
+    Description:    Demo of the MMA7455 driver
+        * Threshold interrupt functionality
+    Author:         Jesse Burt
+    Started:        Dec 30, 2021
+    Updated:        Jun 23, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+---------------------------------------------------------------------------------------------------
 }
+
+' Uncomment the following two lines to use the bytecode-based I2C engine
+'#define MMA7455_I2C_BC
+'#pragma exportdef(MMA7455_I2C_BC)
+
 
 CON
 
-    _clkmode    = cfg#_clkmode
-    _xinfreq    = cfg#_xinfreq
+    _clkmode    = cfg._clkmode
+    _xinfreq    = cfg._xinfreq
 
 ' -- User-modifiable constants
-    LED         = cfg#LED1
+    LED         = cfg.LED1
     SER_BAUD    = 115_200
 
     SCL_PIN     = 28
@@ -28,30 +32,29 @@ CON
     INT1        = 24
 ' --
 
-    DAT_X_COL   = 20
-    DAT_Y_COL   = DAT_X_COL + 15
-    DAT_Z_COL   = DAT_Y_COL + 15
 
 OBJ
 
-    cfg     : "boardcfg.flip"
-    ser     : "com.serial.terminal.ansi"
-    time    : "time"
-    sensor  : "sensor.accel.3dof.mma7455"
+    cfg:    "boardcfg.flip"
+    time:   "time"
+    ser:    "com.serial.terminal.ansi"
+    sensor: "sensor.accel.3dof.mma7455"
+
 
 VAR
 
     long _isr_stack[50]                         ' stack for ISR core
     long _intflag                               ' interrupt flag
 
-PUB main{}
 
-    setup{}
+PUB main()
 
-    sensor.preset_thresh_detect{}                ' set up for accel threshold
+    setup()
+
+    sensor.preset_thresh_detect()                ' set up for accel threshold
                                                 '   detection
 
-    sensor.accel_int_clear(sensor#INT1 | sensor#INT2)' clear INT1 and INT2
+    sensor.accel_int_clear(sensor.INT1 | sensor.INT2)' clear INT1 and INT2
 
     ' Set threshold to 1.0g, and enable detection on X axis only
     ' NOTE: Though there are threshold setting methods for all three
@@ -61,22 +64,23 @@ PUB main{}
     ' NOTE: The full-scale range of the threshold setting is 8g's,
     '   regardless of what sensor.accel_scale() is set to.
     sensor.accel_int_set_thresh(1_000000)
-    sensor.accel_int_mask(sensor#XTHR)
+    sensor.accel_int_mask(sensor.XTHR)
 
     repeat
         ser.pos_xy(0, 3)
-        show_accel_data{}
+        show_accel_data()
         if (_intflag)
             ser.pos_xy(0, 5)
-            ser.strln(string("Interrupt"))
-            ser.getchar{}                       ' wait for keypress
-            sensor.accel_int_clear(%11)           ' must clear interrupts
+            ser.strln(@"Interrupt")
+            ser.getchar()                       ' wait for keypress
+            sensor.accel_int_clear(%11)         ' must clear interrupts
             ser.pos_xy(0, 5)
-            ser.clear_line{}
-        if (ser.rxcheck{} == "c")               ' press the 'c' key in the demo
-            cal_accel{}                         ' to calibrate sensor offsets
+            ser.clear_line()
+        if (ser.getchar_noblock() == "c")       ' press the 'c' key in the demo
+            cal_accel()                         ' to calibrate sensor offsets
 
-PRI cog_isr{}
+
+PRI cog_isr()
 ' Interrupt service routine
     dira[INT1] := 0                             ' INT1 as input
     repeat
@@ -85,26 +89,27 @@ PRI cog_isr{}
         waitpne(|< INT1, |< INT1, 0)            ' now wait for it to clear
         _intflag := 0                           '   clear flag
 
-PUB setup{}
+
+PUB setup()
 
     ser.start(SER_BAUD)
     time.msleep(30)
-    ser.clear{}
-    ser.strln(string("Serial terminal started"))
+    ser.clear()
+    ser.strln(@"Serial terminal started")
 
     if sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS)
-        ser.strln(string("MMA7455 driver started (I2C)"))
+        ser.strln(@"MMA7455 driver started (I2C)")
     else
-        ser.strln(string("MMA7455 driver failed to start - halting"))
+        ser.strln(@"MMA7455 driver failed to start - halting")
         repeat
 
-    cognew(cog_isr{}, @_isr_stack)                    ' start ISR in another core
+    cognew(cog_isr(), @_isr_stack)              ' start ISR in another core
 
-#include "acceldemo.common.spinh"
+#include "acceldemo.common.spinh"               ' use code common to all accelerometer demos
 
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
