@@ -16,32 +16,22 @@ CON
     _clkfreq    = cfg._clkfreq_def
     _xtlfreq    = cfg._xtlfreq
 
-' -- User-modifiable constants
-    SER_BAUD    = 2_000_000
-
-    { I2C configuration }
-    SCL_PIN     = 0
-    SDA_PIN     = 1
-    I2C_FREQ    = 400_000                       ' max is 400_000
-    ADDR_BITS   = 0                             ' 0, 1
-' --
-
 
 OBJ
 
     cfg:    "boardcfg.p2eval"
-    ser:    "com.serial.terminal.ansi"
-    sensor: "sensor.accel.3dof.mma7455"
+    ser:    "com.serial.terminal.ansi" | SER_BAUD=115_200
+    sensor: "sensor.accel.3dof.mma7455" | SCL=0, SDA=1, I2C_FREQ=400_000, I2C_ADDR=0
 
 
 PUB setup()
 
-    ser.start(SER_BAUD)
+    ser.start()
 
     ser.clear()
     ser.strln(@"Serial terminal started")
 
-    if (sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS))
+    if ( sensor.start() )
         ser.strln(@"MMA7455 driver started")
     else
         ser.strln(@"MMA7455 driver failed to start - halting")

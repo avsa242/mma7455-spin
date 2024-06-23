@@ -13,17 +13,15 @@
 
 CON
 
-    SLAVE_WR    = core.SLAVE_ADDR
-    SLAVE_RD    = core.SLAVE_ADDR|1
+    { default I/O configuration - these can be overridden by the parent object }
+    SCL         = 28
+    SDA         = 29
+    I2C_FREQ    = 400_000
+    I2C_ADDR    = 0
 
-    DEF_SCL     = 28
-    DEF_SDA     = 29
-    DEF_HZ      = 100_000
-    DEF_ADDR    = 0
-    I2C_MAX_FREQ= core.I2C_MAX_FREQ
 
-' Indicate to user apps how many Degrees of Freedom each sub-sensor has
-'   (also imply whether or not it has a particular sensor)
+    ' Indicate to user apps how many Degrees of Freedom each sub-sensor has
+    '   (also imply whether or not it has a particular sensor)
     ACCEL_DOF   = 3
     GYRO_DOF    = 0
     MAG_DOF     = 0
@@ -33,7 +31,7 @@ CON
     R           = 0
     W           = 1
 
-' Scales and data rates used during calibration/bias/offset process
+    ' Scales and data rates used during calibration/bias/offset process
     CAL_XL_SCL  = 2
     CAL_G_SCL   = 0
     CAL_M_SCL   = 0
@@ -42,19 +40,19 @@ CON
     CAL_M_DR    = 0
 
 
-' Operating modes
+    ' Operating modes
     #0, STANDBY, MEASURE, LEVELDET, PULSEDET
 
-' Individual axes
+    ' Individual axes
     X_AXIS      = 0
     Y_AXIS      = 1
     Z_AXIS      = 2
 
-' Clear interrupt pins state
+    ' Clear interrupt pins state
     INT2        = 1 << 1
     INT1        = 1 << 0
 
-' Interrupts
+    ' Interrupts
     DRDY        = 1 << 7
     THSIGNED    = 1 << 6
     ZTHR        = 1 << 5
@@ -64,6 +62,16 @@ CON
     PLS1_TH2    = %01 << 1                      ' INT1: Pulse, INT2: Thresh
     SPLS1_DPLS2 = %10 << 1                      ' INT1: 1x Pulse, INT2: 2x Pulse
     INTPIN_INV  = 1
+
+
+    SLAVE_WR    = core.SLAVE_ADDR
+    SLAVE_RD    = core.SLAVE_ADDR|1
+
+    DEF_SCL     = 28
+    DEF_SDA     = 29
+    DEF_HZ      = 100_000
+    DEF_ADDR    = 0
+    I2C_MAX_FREQ= core.I2C_MAX_FREQ
 
 
 VAR
@@ -89,17 +97,17 @@ PUB null()
 
 
 PUB start(): status
-' Start using "standard" Propeller I2C pins and 100kHz
-    return startx(DEF_SCL, DEF_SDA, DEF_HZ, DEF_ADDR)
+' Start the driver using default I/O settings
+    return startx(SCL, SDA, I2C_FREQ, I2C_ADDR)
 
 
 PUB startx(SCL_PIN, SDA_PIN, I2C_HZ, ADDR_BITS): status
-' Start using custom settings
-    if (lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31) and I2C_HZ =< core.I2C_MAX_FREQ)
-        if (status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ))
+' Start the driver using custom settings
+    if ( lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31) )
+        if ( status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ) )
             time.msleep(1)
             _addr_bits := (ADDR_BITS << 1)
-            if (dev_id() == core.DEVID_RESP)
+            if ( dev_id() == core.DEVID_RESP )
                 return
     ' if this point is reached, something above failed
     ' Double check I/O pin assignments, connections, power
@@ -151,7 +159,7 @@ PUB accel_data(ptr_x, ptr_y, ptr_z) | tmp[2]
             long[ptr_z] := (tmp.word[Z_AXIS] << 22) ~> 22
 
 
-PUB accel_data_rate(rate): curr_rate
+PUB accel_data_rate(rate=-2): curr_rate
 ' Set accelerometer output data rate, in Hz
 '   Valid values:
 '       125, 250
@@ -161,12 +169,11 @@ PUB accel_data_rate(rate): curr_rate
     case rate
         125, 250:
             rate := lookdownz(rate: 125, 250) << core.DFBW
+            rate := ((curr_rate & core.DFBW_MASK) | rate)
+            writereg(core.CTL1, 1, @rate)
         other:
             curr_rate := ((curr_rate >> core.DFBW) & 1)
             return lookupz(curr_rate: 125, 250)
-
-    rate := ((curr_rate & core.DFBW_MASK) | rate)
-    writereg(core.CTL1, 1, @rate)
 
 
 PUB accel_data_overrun(): flag
@@ -214,7 +221,7 @@ PUB accel_int_clear(mask)
                                                 '   automatically)
 
 
-PUB accel_int_mask(mask): curr_mask | drpd
+PUB accel_int_mask(mask=-2): curr_mask | drpd
 ' Set accelerometer interrupt mask
 '   Bits 7..0:
 '       7:
@@ -245,6 +252,14 @@ PUB accel_int_mask(mask): curr_mask | drpd
     case mask
         %0000_0000..%1111_1111:                 ' MSB is for DRPD, not DFBW
             mask ^= %00_111_000
+            if ( mask & %10000000 )             ' if bit 7 is set,
+                drpd &= core.DRPD_EN            ' make sure the data-ready
+            else                                ' function is enabled
+                drpd |= core.DRPD_DIS
+            writereg(core.MCTL, 1, @drpd)
+            mask &= core.INTMASK_BITS
+            mask := ((curr_mask & core.INTMASK_MASK) | mask)
+            writereg(core.CTL1, 1, @mask)
         other:
             curr_mask := (curr_mask & core.INTMASK_BITS) ^ core.ZYXDA_INV
             ' ignore all bits from the MCTL reg except the DRPD bit,
@@ -252,15 +267,6 @@ PUB accel_int_mask(mask): curr_mask | drpd
             ' and place it in the MSB so it can be combined with the intmask
             drpd := (((drpd & core.DRPD_BIT) ^ core.DRPD_BIT) << 1)
             return (curr_mask | drpd)
-
-    if (mask & %10000000)                       ' if bit 7 is set,
-        drpd &= core.DRPD_EN                    ' make sure the data-ready
-    else                                        ' function is enabled
-        drpd |= core.DRPD_DIS
-    writereg(core.MCTL, 1, @drpd)
-    mask &= core.INTMASK_BITS
-    mask := ((curr_mask & core.INTMASK_MASK) | mask)
-    writereg(core.CTL1, 1, @mask)
 
 
 PUB accel_int_set_thresh(thresh)
@@ -270,7 +276,7 @@ PUB accel_int_set_thresh(thresh)
     writereg(core.LDTH, 1, @thresh)
 
 
-PUB accel_int_thresh_x(thresh): curr_thr
+PUB accel_int_thresh_x(thresh=-2): curr_thr
 ' Set interrupt threshold, X-axis
 '   Valid values: 0..8_000000 (0..8g)
 '   NOTE: Range is fixed at 0..8g, regardless of accel_scale() setting
@@ -279,7 +285,7 @@ PUB accel_int_thresh_x(thresh): curr_thr
     accel_int_set_thresh(thresh)
 
 
-PUB accel_int_thresh_y(thresh): curr_thr
+PUB accel_int_thresh_y(thresh=-2): curr_thr
 ' Set interrupt threshold, Y-axis
 '   Any other value returns the current setting
 '   NOTE: Range is fixed at 0..8g, regardless of accel_scale() setting
@@ -288,7 +294,7 @@ PUB accel_int_thresh_y(thresh): curr_thr
     accel_int_set_thresh(thresh)
 
 
-PUB accel_int_thresh_z(thresh): curr_thr
+PUB accel_int_thresh_z(thresh=-2): curr_thr
 ' Set interrupt threshold, Z-axis
 '   Any other value returns the current setting
 '   NOTE: Range is fixed at 0..8g, regardless of accel_scale() setting
@@ -301,10 +307,10 @@ PUB accel_int_thresh(): thresh
 ' Get interrupt threshold
     thresh := 0
     readreg(core.LDTH, 1, @thresh)
-    return (~thresh * 62_500)         ' convert to micro-g's
+    return (~thresh * 62_500)                   ' convert to micro-g's
 
 
-PUB accel_opmode(mode) | curr_mode
+PUB accel_opmode(mode=-2): curr_mode
 ' Set operating mode
 '   Valid values:
 '       STANDBY (%00): Standby
@@ -316,14 +322,13 @@ PUB accel_opmode(mode) | curr_mode
     readreg(core.MCTL, 1, @curr_mode)
     case mode
         STANDBY, MEASURE, LEVELDET, PULSEDET:
+            mode := ((curr_mode & core.MODE_MASK) | mode)
+            writereg(core.MCTL, 1, @mode)
         other:
             return curr_mode & core.MODE_BITS
 
-    mode := ((curr_mode & core.MODE_MASK) | mode)
-    writereg(core.MCTL, 1, @mode)
 
-
-PUB accel_scale(scale): curr_scl
+PUB accel_scale(scale=-2): curr_scl
 ' Set measurement range of the accelerometer, in g's
 '   Valid values: 2, 4, *8
 '   Any other value polls the chip and returns the current setting
@@ -344,7 +349,7 @@ PUB accel_scale(scale): curr_scl
     writereg(core.MCTL, 1, @scale)
 
 
-PUB accel_self_test(state) | curr_state
+PUB accel_self_test(state=-2): curr_state
 ' Enable self-test
 '   Valid values: TRUE (-1 or 1), FALSE (0)
 '   Any other value polls the chip and returns the current setting
@@ -355,11 +360,10 @@ PUB accel_self_test(state) | curr_state
     case ||(state)
         0, 1:
             state := ||(state) << core.STON
+            state := ((curr_state & core.STON_MASK) | state)
+            writereg(core.MCTL, 1, @state)
         other:
             return (((curr_state >> core.STON) & 1) == 1)
-
-    state := ((curr_state & core.STON_MASK) | state)
-    writereg(core.MCTL, 1, @state)
 
 
 PUB accel_set_bias(x, y, z)

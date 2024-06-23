@@ -21,14 +21,6 @@ CON
     _xinfreq    = cfg._xinfreq
 
 ' -- User-modifiable constants
-    LED         = cfg.LED1
-    SER_BAUD    = 115_200
-
-    SCL_PIN     = 28
-    SDA_PIN     = 29
-    I2C_FREQ    = 400_000
-    ADDR_BITS   = 0
-
     INT1        = 24
 ' --
 
@@ -37,8 +29,8 @@ OBJ
 
     cfg:    "boardcfg.flip"
     time:   "time"
-    ser:    "com.serial.terminal.ansi"
-    sensor: "sensor.accel.3dof.mma7455"
+    ser:    "com.serial.terminal.ansi" | SER_BAUD=115_200
+    sensor: "sensor.accel.3dof.mma7455" | SCL=28, SDA=29, I2C_FREQ=400_000, I2C_ADDR=0
 
 
 VAR
@@ -69,14 +61,14 @@ PUB main()
     repeat
         ser.pos_xy(0, 3)
         show_accel_data()
-        if (_intflag)
+        if ( _intflag )
             ser.pos_xy(0, 5)
             ser.strln(@"Interrupt")
             ser.getchar()                       ' wait for keypress
             sensor.accel_int_clear(%11)         ' must clear interrupts
             ser.pos_xy(0, 5)
             ser.clear_line()
-        if (ser.getchar_noblock() == "c")       ' press the 'c' key in the demo
+        if ( ser.getchar_noblock() == "c" )     ' press the 'c' key in the demo
             cal_accel()                         ' to calibrate sensor offsets
 
 
@@ -92,12 +84,12 @@ PRI cog_isr()
 
 PUB setup()
 
-    ser.start(SER_BAUD)
+    ser.start()
     time.msleep(30)
     ser.clear()
     ser.strln(@"Serial terminal started")
 
-    if sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS)
+    if ( sensor.start() )
         ser.strln(@"MMA7455 driver started (I2C)")
     else
         ser.strln(@"MMA7455 driver failed to start - halting")
