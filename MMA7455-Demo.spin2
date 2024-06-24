@@ -20,7 +20,7 @@ CON
 OBJ
 
     cfg:    "boardcfg.p2eval"
-    ser:    "com.serial.terminal.ansi" | SER_BAUD=115_200
+    ser:    "com.serial.terminal.ansi" | SER_BAUD=2_000_000
     sensor: "sensor.accel.3dof.mma7455" | SCL=0, SDA=1, I2C_FREQ=400_000, I2C_ADDR=0
 
 
