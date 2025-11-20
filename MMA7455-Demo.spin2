@@ -1,47 +1,37 @@
 {
-    --------------------------------------------
-    Filename: MMA7455-Demo.spin2
-    Author: Jesse Burt
-    Description: MMA7455 driver demo (P2 version)
+---------------------------------------------------------------------------------------------------
+    Filename:       MMA7455-Demo.spin2
+    Description:    MMA7455 driver demo
         * 3DoF data output
-    Copyright (c) 2022
-    Started Aug 28, 2020
-    Updated Nov 26, 2022
-    See end of file for terms of use.
-    --------------------------------------------
-
-    Build-time symbols supported by driver:
-        N/A
+    Author:         Jesse Burt
+    Started:        Aug 28, 2020
+    Updated:        Jun 23, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+---------------------------------------------------------------------------------------------------
 }
+
+
 CON
 
     _clkfreq    = cfg._clkfreq_def
     _xtlfreq    = cfg._xtlfreq
 
-' -- User-modifiable constants
-    SER_BAUD    = 2_000_000
-
-    { I2C configuration }
-    SCL_PIN     = 0
-    SDA_PIN     = 1
-    I2C_FREQ    = 400_000                       ' max is 400_000
-    ADDR_BITS   = 0                             ' 0, 1
-' --
 
 OBJ
 
-    cfg: "boardcfg.p2eval"
-    sensor: "sensor.accel.3dof.mma7455"
-    ser: "com.serial.terminal.ansi"
+    cfg:    "boardcfg.p2eval"
+    ser:    "com.serial.terminal.ansi" | SER_BAUD=2_000_000
+    sensor: "sensor.accel.3dof.mma7455" | SCL=0, SDA=1, I2C_FREQ=400_000, I2C_ADDR=0
+
 
 PUB setup()
 
-    ser.start(SER_BAUD)
-    waitms(10)
+    ser.start()
+
     ser.clear()
     ser.strln(@"Serial terminal started")
 
-    if (sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS))
+    if ( sensor.start() )
         ser.strln(@"MMA7455 driver started")
     else
         ser.strln(@"MMA7455 driver failed to start - halting")
@@ -52,14 +42,14 @@ PUB setup()
     repeat
         ser.pos_xy(0, 3)
         show_accel_data()
-        if (ser.rx_check() == "c")
+        if ( ser.getchar_noblock() == "c" )
             cal_accel()
 
 #include "acceldemo.common.spin2h"                ' code common to all IMU demos
 
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,

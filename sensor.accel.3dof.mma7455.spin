@@ -8,20 +8,20 @@
     Copyright (c) 2025 - See end of file for terms of use.
 ---------------------------------------------------------------------------------------------------
 }
+
 #include "sensor.accel.common.spinh"
 
 CON
 
     { default I/O configuration - these can be overridden by the parent object }
-    ' I2C
-    SCL             = 28
-    SDA             = 29
-    I2C_FREQ        = 1_000_000
-    I2C_ADDR        = 0
+    SCL         = 28
+    SDA         = 29
+    I2C_FREQ    = 400_000
+    I2C_ADDR    = 0
 
 
-' Indicate to user apps how many Degrees of Freedom each sub-sensor has
-'   (also imply whether or not it has a particular sensor)
+    ' Indicate to user apps how many Degrees of Freedom each sub-sensor has
+    '   (also imply whether or not it has a particular sensor)
     ACCEL_DOF   = 3
     GYRO_DOF    = 0
     MAG_DOF     = 0
@@ -31,7 +31,7 @@ CON
     R           = 0
     W           = 1
 
-' Scales and data rates used during calibration/bias/offset process
+    ' Scales and data rates used during calibration/bias/offset process
     CAL_XL_SCL  = 2
     CAL_G_SCL   = 0
     CAL_M_SCL   = 0
@@ -40,19 +40,19 @@ CON
     CAL_M_DR    = 0
 
 
-' Operating modes
+    ' Operating modes
     #0, STANDBY, MEASURE, LEVELDET, PULSEDET
 
-' Individual axes
+    ' Individual axes
     X_AXIS      = 0
     Y_AXIS      = 1
     Z_AXIS      = 2
 
-' Clear interrupt pins state
+    ' Clear interrupt pins state
     INT2        = 1 << 1
     INT1        = 1 << 0
 
-' Interrupts
+    ' Interrupts
     DRDY        = 1 << 7
     THSIGNED    = 1 << 6
     ZTHR        = 1 << 5
@@ -87,16 +87,16 @@ OBJ
 
 
 PUB null()
-'This is not a top-level object
+' This is not a top-level object
 
 
 PUB start(): status
-' Start using "standard" Propeller I2C pins and 100kHz
+' Start the driver using default I/O settings
     return startx(SCL, SDA, I2C_FREQ, I2C_ADDR)
 
 
 PUB startx(SCL_PIN, SDA_PIN, I2C_HZ, ADDR_BITS): status
-' Start using custom settings
+' Start the driver using custom settings
     if ( lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31) )
         if ( status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ) )
             time.msleep(1)

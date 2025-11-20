@@ -1,67 +1,61 @@
 {
-    --------------------------------------------
-    Filename: MMA7455-Demo.spin
-    Author: Jesse Burt
-    Description: MMA7455 driver demo
+---------------------------------------------------------------------------------------------------
+    Filename:       MMA7455-Demo.spin
+    Description:    Demo of the MMA7455 driver
         * 3DoF data output
-    Copyright (c) 2022
-    Started Aug 28, 2020
-    Updated Nov 26, 2022
-    See end of file for terms of use.
-    --------------------------------------------
-
-    Build-time symbols supported by driver:
-        -DMMA7455_I2C (default if none specified)
-        -DMMA7455_I2C_BC
+    Author:         Jesse Burt
+    Started:        Aug 28, 2020
+    Updated:        Jun 23, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+---------------------------------------------------------------------------------------------------
 }
+
+' Uncomment the following two lines to use the bytecode-based I2C engine
+'#define MMA7455_I2C_BC
+'#pragma exportdef(MMA7455_I2C_BC)
+
+
 CON
 
     _clkmode    = cfg#_clkmode
     _xinfreq    = cfg#_xinfreq
 
-' -- User-modifiable constants
-    SER_BAUD    = 115_200
-
-    { I2C configuration }
-    SCL_PIN     = 28
-    SDA_PIN     = 29
-    I2C_FREQ    = 400_000                       ' max is 400_000
-    ADDR_BITS   = 0                             ' 0, 1
-' --
 
 OBJ
 
-    cfg: "boardcfg.flip"
-    sensor: "sensor.accel.3dof.mma7455"
-    ser: "com.serial.terminal.ansi"
-    time: "time"
+    cfg:    "boardcfg.flip"
+    time:   "time"
+    ser:    "com.serial.terminal.ansi" | SER_BAUD=115_200
+    sensor: "sensor.accel.3dof.mma7455" | SCL=28, SDA=29, I2C_FREQ=400_000, I2C_ADDR=0
 
-PUB setup{}
 
-    ser.start(SER_BAUD)
-    time.msleep(10)
-    ser.clear{}
-    ser.strln(string("Serial terminal started"))
+PUB setup()
 
-    if (sensor.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS))
-        ser.strln(string("MMA7455 driver started"))
+    ser.start()
+    time.msleep(30)
+    ser.clear()
+    ser.strln(@"Serial terminal started")
+
+    if ( sensor.start() )
+        ser.strln(@"MMA7455 driver started")
     else
-        ser.strln(string("MMA7455 driver failed to start - halting"))
+        ser.strln(@"MMA7455 driver failed to start - halting")
         repeat
 
-    sensor.preset_active{}
+    sensor.preset_active()
 
     repeat
         ser.pos_xy(0, 3)
-        show_accel_data{}
-        if (ser.rx_check{} == "c")
-            cal_accel{}
+        show_accel_data()
+        if ( ser.getchar_noblock() == "c" )
+            cal_accel()
 
 #include "acceldemo.common.spinh"                 ' code common to all IMU demos
 
+
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
