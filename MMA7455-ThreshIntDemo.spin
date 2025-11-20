@@ -5,8 +5,8 @@
         * Threshold interrupt functionality
     Author:         Jesse Burt
     Started:        Dec 30, 2021
-    Updated:        Jun 23, 2024
-    Copyright (c) 2024 - See end of file for terms of use.
+    Updated:        Nov 20, 2025
+    Copyright (c) 2025 - See end of file for terms of use.
 ---------------------------------------------------------------------------------------------------
 }
 
@@ -17,8 +17,8 @@
 
 CON
 
-    _clkmode    = cfg._clkmode
-    _xinfreq    = cfg._xinfreq
+    _clkmode    = xtal1+pll16x
+    _xinfreq    = 5_000_000
 
 ' -- User-modifiable constants
     INT1        = 24
@@ -27,10 +27,9 @@ CON
 
 OBJ
 
-    cfg:    "boardcfg.flip"
-    time:   "time"
     ser:    "com.serial.terminal.ansi" | SER_BAUD=115_200
     sensor: "sensor.accel.3dof.mma7455" | SCL=28, SDA=29, I2C_FREQ=400_000, I2C_ADDR=0
+    time:   "time"
 
 
 VAR
@@ -39,11 +38,11 @@ VAR
     long _intflag                               ' interrupt flag
 
 
-PUB main()
+PUB main() | a[sensor.ACCEL_DOF]
 
     setup()
 
-    sensor.preset_thresh_detect()                ' set up for accel threshold
+    sensor.preset_thresh_detect()               ' set up for accel threshold
                                                 '   detection
 
     sensor.accel_int_clear(sensor.INT1 | sensor.INT2)' clear INT1 and INT2
@@ -60,7 +59,8 @@ PUB main()
 
     repeat
         ser.pos_xy(0, 3)
-        show_accel_data()
+        sensor.accel_g(@a[sensor.X_AXIS], @a[sensor.Y_AXIS], @a[sensor.Z_AXIS])
+        show_data(@"Accel  (g):  ", a[sensor.X_AXIS], a[sensor.Y_AXIS], a[sensor.Z_AXIS])
         if ( _intflag )
             ser.pos_xy(0, 5)
             ser.strln(@"Interrupt")
@@ -70,6 +70,35 @@ PUB main()
             ser.clear_line()
         if ( ser.getchar_noblock() == "c" )     ' press the 'c' key in the demo
             cal_accel()                         ' to calibrate sensor offsets
+
+
+PUB show_data(p_str, x, y, z) | axis, tmp[3], sign
+
+    longmove(@tmp, @x, 3)
+
+    ser.str(p_str)
+    repeat axis from 0 to 2
+        ' The sign is normally taken from the whole part and just displayed.
+        ' Because we're showing values divided by 1_000_000, it won't show negative until the value
+        '   reaches -1_000_000 or less, so values like -0_800_000 will display without the '-',
+        '   so process the sign display separately here
+        if ( tmp[axis] < 0 )
+            sign := "-"
+        else
+            sign := " "
+        ser.printf(@"%c%d.%06.6d     ", sign, ...
+                                        abs(tmp[axis] / 1_000_000), ...
+                                        abs(tmp[axis] // 1_000_000) )
+    ser.newline()
+
+
+PUB cal_accel()
+' Calibrate the accelerometer
+    ser.pos_xy(0, 3)
+    ser.str(@"Calibrating accelerometer...")
+    sensor.calibrate_accel()
+    ser.pos_xy(0, 3)
+    ser.clear_ln()
 
 
 PRI cog_isr()
@@ -97,11 +126,10 @@ PUB setup()
 
     cognew(cog_isr(), @_isr_stack)              ' start ISR in another core
 
-#include "acceldemo.common.spinh"               ' use code common to all accelerometer demos
 
 DAT
 {
-Copyright 2024 Jesse Burt
+Copyright 2025 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
